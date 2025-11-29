@@ -17,6 +17,9 @@ class Challenge extends Rule
     public function __construct(array $conditions = [], string $type = self::TYPE_CAPTCHA)
     {
         parent::__construct($conditions);
+        if (!in_array($type, [self::TYPE_CAPTCHA, self::TYPE_CUSTOM], true)) {
+            throw new \InvalidArgumentException('Invalid challenge type: ' . $type);
+        }
         $this->type = $type;
     }
 
