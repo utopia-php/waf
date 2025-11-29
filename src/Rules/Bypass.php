@@ -11,4 +11,3 @@ class Bypass extends Rule
         return self::ACTION_BYPASS;
     }
 }
-
