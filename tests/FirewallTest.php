@@ -56,7 +56,11 @@ class FirewallTest extends TestCase
         $matched = $firewall->getLastMatchedRule();
 
         $this->assertInstanceOf(RateLimit::class, $matched);
-        $this->assertSame(2, $matched?->getLimit());
-        $this->assertSame(60, $matched?->getInterval());
+        if (!$matched instanceof RateLimit) {
+            return;
+        }
+
+        $this->assertSame(2, $matched->getLimit());
+        $this->assertSame(60, $matched->getInterval());
     }
 }

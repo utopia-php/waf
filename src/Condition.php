@@ -191,6 +191,13 @@ class Condition
         return array_map(static fn (array $condition): self => self::fromArray($condition), $conditions);
     }
 
+    /**
+     * @return array{
+     *     method: string,
+     *     attribute?: string,
+     *     values: array<mixed>
+     * }
+     */
     public function toArray(): array
     {
         $result = ['method' => $this->method];
@@ -258,11 +265,17 @@ class Condition
         return new self(self::TYPE_GREATER_THAN_EQUAL, $attribute, [$value]);
     }
 
+    /**
+     * @param array<mixed> $values
+     */
     public static function contains(string $attribute, array $values): self
     {
         return new self(self::TYPE_CONTAINS, $attribute, $values);
     }
 
+    /**
+     * @param array<mixed> $values
+     */
     public static function notContains(string $attribute, array $values): self
     {
         return new self(self::TYPE_NOT_CONTAINS, $attribute, $values);

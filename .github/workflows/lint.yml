@@ -12,7 +12,9 @@ jobs:
         uses: actions/checkout@v4
 
       - name: Run Linter
+        env:
+          COMPOSER_ROOT_VERSION: dev-main
         run: |
-          docker run --rm -v $PWD:/app composer:2.8 sh -c \
-          "composer install --profile --ignore-platform-reqs && composer lint"
+          docker run --rm -v $PWD:/app -w /app -e COMPOSER_ROOT_VERSION=$COMPOSER_ROOT_VERSION composer:2.8 sh -c \
+          "git config --global --add safe.directory /app && composer install --profile --ignore-platform-reqs && composer lint"
 
