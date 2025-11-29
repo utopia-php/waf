@@ -8,6 +8,7 @@
     },
     "require-dev": {
         "laravel/pint": "^1.18",
+        "phpstan/phpstan": "^1.11",
         "phpunit/phpunit": "^11.0"
     },
     "autoload": {
@@ -21,12 +22,10 @@
         }
     },
     "scripts": {
-        "check": [
-            "composer validate --strict",
-            "composer test"
-        ],
+        "check": "vendor/bin/phpstan analyse -c phpstan.neon --memory-limit 512M",
         "lint": "vendor/bin/pint --test",
-        "test": "vendor/bin/phpunit"
+        "format": "vendor/bin/pint",
+        "test": "vendor/bin/phpunit --configuration phpunit.xml"
     },
     "minimum-stability": "stable",
     "prefer-stable": true

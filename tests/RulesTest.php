@@ -50,4 +50,3 @@ class RulesTest extends TestCase
         $this->assertSame(600, $rule->getInterval());
     }
 }
-
