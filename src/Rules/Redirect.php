@@ -35,4 +35,3 @@ class Redirect extends Rule
         return $this->statusCode;
     }
 }
-
