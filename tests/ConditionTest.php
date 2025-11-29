@@ -62,6 +62,22 @@ class ConditionTest extends TestCase
         $this->assertFalse($notBetween->matches(['latency' => 150]));
     }
 
+    public function testRelationalOperatorsWithNullValues(): void
+    {
+        $lessThan = Condition::lessThan('count', 5);
+        $greaterThan = Condition::greaterThan('count', 5);
+        $between = Condition::between('count', 1, 10);
+
+        $this->assertFalse($lessThan->matches(['count' => null]));
+        $this->assertFalse($lessThan->matches([]));
+
+        $this->assertFalse($greaterThan->matches(['count' => null]));
+        $this->assertFalse($greaterThan->matches([]));
+
+        $this->assertFalse($between->matches(['count' => null]));
+        $this->assertFalse($between->matches([]));
+    }
+
     public function testStartsAndEndsOperators(): void
     {
         $startsWith = Condition::startsWith('path', '/api');

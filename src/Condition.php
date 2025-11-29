@@ -340,10 +340,10 @@ class Condition
         return match ($this->method) {
             self::TYPE_EQUAL => $this->matchesEqual($value),
             self::TYPE_NOT_EQUAL => !$this->matchesEqual($value),
-            self::TYPE_LESS_THAN => $this->compare($value, $this->values[0] ?? null) < 0,
-            self::TYPE_LESS_THAN_EQUAL => $this->compare($value, $this->values[0] ?? null) <= 0,
-            self::TYPE_GREATER_THAN => $this->compare($value, $this->values[0] ?? null) > 0,
-            self::TYPE_GREATER_THAN_EQUAL => $this->compare($value, $this->values[0] ?? null) >= 0,
+            self::TYPE_LESS_THAN => $this->matchesRelational($value, $this->values[0] ?? null, static fn (int $result): bool => $result < 0),
+            self::TYPE_LESS_THAN_EQUAL => $this->matchesRelational($value, $this->values[0] ?? null, static fn (int $result): bool => $result <= 0),
+            self::TYPE_GREATER_THAN => $this->matchesRelational($value, $this->values[0] ?? null, static fn (int $result): bool => $result > 0),
+            self::TYPE_GREATER_THAN_EQUAL => $this->matchesRelational($value, $this->values[0] ?? null, static fn (int $result): bool => $result >= 0),
             self::TYPE_CONTAINS => $this->matchesContains($value, $this->values),
             self::TYPE_NOT_CONTAINS => !$this->matchesContains($value, $this->values),
             self::TYPE_BETWEEN => $this->matchesRange($value, true),
@@ -444,13 +444,20 @@ class Condition
 
         [$start, $end] = $this->values;
 
-        if ($value === null) {
+        if ($value === null || $start === null || $end === null) {
+            return false;
+        }
+
+        $startComparison = $this->compare($value, $start);
+        $endComparison = $this->compare($value, $end);
+
+        if ($startComparison === null || $endComparison === null) {
             return false;
         }
 
         return $inclusive
-            ? $this->compare($value, $start) >= 0 && $this->compare($value, $end) <= 0
-            : $this->compare($value, $start) > 0 && $this->compare($value, $end) < 0;
+            ? $startComparison >= 0 && $endComparison <= 0
+            : $startComparison > 0 && $endComparison < 0;
     }
 
     private function matchesPrefix(mixed $value): bool
@@ -507,10 +514,14 @@ class Condition
         return $attributes[$this->attribute] ?? null;
     }
 
-    private function compare(mixed $left, mixed $right): int
+    private function compare(mixed $left, mixed $right): ?int
     {
+        if ($left === null && $right === null) {
+            return 0;
+        }
+
         if ($left === null || $right === null) {
-            return -1;
+            return null;
         }
 
         if (\is_numeric($left) && \is_numeric($right)) {
@@ -525,6 +536,24 @@ class Condition
             return $left <=> $right;
         }
 
-        return -1;
+        return null;
+    }
+
+    /**
+     * @param callable(int):bool $verdict
+     */
+    private function matchesRelational(mixed $value, mixed $reference, callable $verdict): bool
+    {
+        if ($value === null || $reference === null) {
+            return false;
+        }
+
+        $result = $this->compare($value, $reference);
+
+        if ($result === null) {
+            return false;
+        }
+
+        return $verdict($result);
     }
 }
