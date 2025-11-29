@@ -19,6 +19,9 @@ class RateLimit extends Rule
         int $interval = 3600
     ) {
         parent::__construct($conditions);
+        if ($limit < 1 || $interval < 1) {
+            throw new \InvalidArgumentException('Limit and interval must be at least 1');
+        }
         $this->limit = max(1, $limit);
         $this->interval = max(1, $interval);
     }
