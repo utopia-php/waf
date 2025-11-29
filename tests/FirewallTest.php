@@ -5,7 +5,7 @@ namespace Utopia\WAF\Tests;
 use PHPUnit\Framework\TestCase;
 use Utopia\WAF\Condition;
 use Utopia\WAF\Firewall;
-use Utopia\WAF\Rules\Allow;
+use Utopia\WAF\Rules\Bypass;
 use Utopia\WAF\Rules\Deny;
 use Utopia\WAF\Rules\RateLimit;
 
@@ -22,20 +22,20 @@ class FirewallTest extends TestCase
             Condition::notEqual('path', '/health'),
         ]);
 
-        $allow = new Allow([
+        $bypass = new Bypass([
             Condition::equal('ip', ['127.0.0.1']),
         ]);
 
         $firewall->addRule($deny);
-        $firewall->addRule($allow);
+        $firewall->addRule($bypass);
 
         $this->assertFalse($firewall->verify(), 'Deny should be executed first');
 
         $firewall->clearRules();
-        $firewall->addRule($allow);
+        $firewall->addRule($bypass);
         $firewall->addRule($deny);
 
-        $this->assertTrue($firewall->verify(), 'Allow should pass when it is the first matching rule');
+        $this->assertTrue($firewall->verify(), 'Bypass should pass when it is the first matching rule');
     }
 
     public function testRateLimitMetadata(): void

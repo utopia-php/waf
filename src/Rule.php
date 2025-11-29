@@ -4,7 +4,7 @@ namespace Utopia\WAF;
 
 abstract class Rule
 {
-    public const ACTION_ALLOW = 'allow';
+    public const ACTION_BYPASS = 'bypass';
     public const ACTION_DENY = 'deny';
     public const ACTION_CHALLENGE = 'challenge';
     public const ACTION_RATE_LIMIT = 'rateLimit';

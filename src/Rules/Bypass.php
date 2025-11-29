@@ -4,10 +4,11 @@ namespace Utopia\WAF\Rules;
 
 use Utopia\WAF\Rule;
 
-class Allow extends Rule
+class Bypass extends Rule
 {
     public function getAction(): string
     {
-        return self::ACTION_ALLOW;
+        return self::ACTION_BYPASS;
     }
 }
+

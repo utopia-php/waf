@@ -4,7 +4,7 @@ namespace Utopia\WAF\Tests;
 
 use PHPUnit\Framework\TestCase;
 use Utopia\WAF\Condition;
-use Utopia\WAF\Rules\Allow;
+use Utopia\WAF\Rules\Bypass;
 use Utopia\WAF\Rules\Challenge;
 use Utopia\WAF\Rules\Deny;
 use Utopia\WAF\Rules\RateLimit;
@@ -12,14 +12,14 @@ use Utopia\WAF\Rules\Redirect;
 
 class RulesTest extends TestCase
 {
-    public function testAllowRuleMatches(): void
+    public function testBypassRuleMatches(): void
     {
-        $rule = new Allow([
+        $rule = new Bypass([
             Condition::equal('ip', ['127.0.0.1']),
         ]);
 
         $this->assertTrue($rule->matches(['ip' => '127.0.0.1']));
-        $this->assertSame('allow', $rule->getAction());
+        $this->assertSame('bypass', $rule->getAction());
     }
 
     public function testDenyRule(): void

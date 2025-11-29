@@ -102,7 +102,7 @@ class Firewall
     private function applyRule(Rule $rule): bool
     {
         return match ($rule->getAction()) {
-            Rule::ACTION_ALLOW => true,
+            Rule::ACTION_BYPASS => true,
             Rule::ACTION_DENY => false,
             Rule::ACTION_CHALLENGE => false,
             Rule::ACTION_RATE_LIMIT => true,
