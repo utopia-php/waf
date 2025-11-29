@@ -106,6 +106,7 @@ class Firewall
             Rule::ACTION_DENY => false,
             Rule::ACTION_CHALLENGE => false,
             Rule::ACTION_RATE_LIMIT => true,
+            Rule::ACTION_REDIRECT => false,
             default => false,
         };
     }

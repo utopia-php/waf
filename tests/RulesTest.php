@@ -8,6 +8,7 @@ use Utopia\WAF\Rules\Allow;
 use Utopia\WAF\Rules\Challenge;
 use Utopia\WAF\Rules\Deny;
 use Utopia\WAF\Rules\RateLimit;
+use Utopia\WAF\Rules\Redirect;
 
 class RulesTest extends TestCase
 {
@@ -48,5 +49,14 @@ class RulesTest extends TestCase
         $this->assertSame('rateLimit', $rule->getAction());
         $this->assertSame(10, $rule->getLimit());
         $this->assertSame(600, $rule->getInterval());
+    }
+
+    public function testRedirectRule(): void
+    {
+        $rule = new Redirect([], location: '/new', statusCode: 301);
+
+        $this->assertSame('redirect', $rule->getAction());
+        $this->assertSame('/new', $rule->getLocation());
+        $this->assertSame(301, $rule->getStatusCode());
     }
 }

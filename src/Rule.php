@@ -8,6 +8,7 @@ abstract class Rule
     public const ACTION_DENY = 'deny';
     public const ACTION_CHALLENGE = 'challenge';
     public const ACTION_RATE_LIMIT = 'rateLimit';
+    public const ACTION_REDIRECT = 'redirect';
 
     /**
      * @var array<Condition>

@@ -5,7 +5,7 @@ Lite & fast micro PHP Web Application Firewall (WAF) rules management library th
 The library ships with:
 
 - A `Condition` builder that mirrors the API of [`Utopia\Database\Query`](https://github.com/utopia-php/database/blob/main/src/Database/Query.php), including JSON parsing helpers and logical operators.
-- Action specific rule classes (`Allow`, `Deny`, `Challenge`, `RateLimit`).
+- Action specific rule classes (`Allow`, `Deny`, `Challenge`, `RateLimit`, `Redirect`).
 - A dependency-free `Firewall` orchestrator that evaluates rules against any set of request attributes.
 
 ## Installation
@@ -27,6 +27,7 @@ use Utopia\WAF\Rules\Allow;
 use Utopia\WAF\Rules\Deny;
 use Utopia\WAF\Rules\Challenge;
 use Utopia\WAF\Rules\RateLimit;
+use Utopia\WAF\Rules\Redirect;
 
 $firewall = new Firewall();
 $firewall->setAttribute('requestIP', '127.0.0.1');
@@ -53,6 +54,10 @@ $firewall->addRule(new Challenge([
 $firewall->addRule(new RateLimit([
     Condition::equal('method', ['POST']),
 ], limit: 100, interval: 3600));
+
+$firewall->addRule(new Redirect([
+    Condition::startsWith('path', '/legacy'),
+], location: '/new-home', statusCode: 301));
 
 var_dump($firewall->verify()); // bool(true|false)
 
