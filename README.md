@@ -68,7 +68,7 @@ if ($rule = $firewall->getLastMatchedRule()) {
 
 ### Building Conditions
 
-Conditions can be created fluently or by parsing JSON definitions:
+Conditions can be created fluently or by encoding/decoding JSON definitions:
 
 ```php
 $condition = Condition::and([
@@ -76,8 +76,8 @@ $condition = Condition::and([
     Condition::notEqual('path', '/health'),
 ]);
 
-$json = $condition->toString();
-$parsed = Condition::parse($json);
+$json = $condition->encode();
+$parsed = Condition::decode($json);
 ```
 
 Available operators mirror the database query builder: `equal`, `notEqual`, `lessThan`, `greaterThan`, `contains`, `between`, `startsWith`, `endsWith`, `isNull`, `and`, `or`, and more.

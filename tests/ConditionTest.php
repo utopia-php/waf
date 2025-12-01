@@ -162,8 +162,8 @@ class ConditionTest extends TestCase
             ]),
         ]);
 
-        $json = $condition->toString();
-        $parsed = Condition::parse($json);
+        $json = $condition->encode();
+        $parsed = Condition::decode($json);
 
         $this->assertTrue($parsed->matches(['ip' => '127.0.0.1', 'path' => '/api/users']));
         $this->assertTrue($parsed->matches(['ip' => '127.0.0.1', 'path' => '/status.json']));
@@ -185,6 +185,6 @@ class ConditionTest extends TestCase
     {
         $this->expectException(ConditionException::class);
 
-        Condition::parse('{"method":');
+        Condition::decode('{"method":');
     }
 }

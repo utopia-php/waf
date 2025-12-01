@@ -128,9 +128,9 @@ class Condition
     }
 
     /**
-     * Parses a JSON encoded condition.
+     * Decode a JSON encoded condition string.
      */
-    public static function parse(string $payload): self
+    public static function decode(string $payload): self
     {
         try {
             $decoded = \json_decode($payload, true, flags: JSON_THROW_ON_ERROR);
@@ -223,7 +223,7 @@ class Condition
      *
      * @throws ConditionException
      */
-    public function toString(): string
+    public function encode(): string
     {
         try {
             return \json_encode($this->toArray(), flags: JSON_THROW_ON_ERROR);
