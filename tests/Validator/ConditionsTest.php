@@ -8,6 +8,14 @@ use Utopia\WAF\Validator\Conditions;
 
 class ConditionsTest extends TestCase
 {
+    public function testReturnsArrayType(): void
+    {
+        $validator = new Conditions();
+
+        $this->assertTrue($validator->isArray());
+        $this->assertSame(Conditions::TYPE_ARRAY, $validator->getType());
+    }
+
     public function testRejectsEmptyConditionList(): void
     {
         $validator = new Conditions();
@@ -15,12 +23,21 @@ class ConditionsTest extends TestCase
         $this->assertFalse($validator->isValid([]));
     }
 
-    public function testAcceptsConditionArraysAndStrings(): void
+    public function testAcceptsConditionArrays(): void
     {
         $validator = new Conditions();
 
         $this->assertTrue($validator->isValid([
             Condition::equal('ip', ['198.51.100.5'])->toArray(),
+            Condition::startsWith('path', '/v1')->toArray(),
+        ]));
+    }
+
+    public function testRejectsConditionStrings(): void
+    {
+        $validator = new Conditions();
+
+        $this->assertFalse($validator->isValid([
             Condition::startsWith('path', '/v1')->encode(),
         ]));
     }
@@ -44,16 +61,40 @@ class ConditionsTest extends TestCase
 
         $this->assertFalse($validator->isValid([
             Condition::equal('ip', ['198.51.100.5'])->toArray(),
-            Condition::startsWith('path', '/v1')->encode(),
+            Condition::startsWith('path', '/v1')->toArray(),
         ]));
     }
 
-    public function testRejectsLongConditionStrings(): void
+    public function testRejectsTooManyNestedConditions(): void
     {
-        $validator = new Conditions(maxPayloadLength: 5);
+        $validator = new Conditions(maxConditions: 2);
 
         $this->assertFalse($validator->isValid([
-            Condition::startsWith('path', '/v1')->encode(),
+            Condition::and([
+                Condition::equal('ip', ['198.51.100.5']),
+                Condition::startsWith('path', '/v1'),
+            ])->toArray(),
+        ]));
+    }
+
+    public function testRejectsLongConditionArrays(): void
+    {
+        $validator = new Conditions(maxPayloadLength: 64);
+
+        $this->assertFalse($validator->isValid([
+            Condition::equal('ip', [\str_repeat('1', 128)])->toArray(),
+        ]));
+    }
+
+    public function testRejectsEmptyLogicalConditions(): void
+    {
+        $validator = new Conditions();
+
+        $this->assertFalse($validator->isValid([
+            [
+                'method' => Condition::TYPE_AND,
+                'values' => [],
+            ],
         ]));
     }
 }
