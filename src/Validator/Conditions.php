@@ -36,6 +36,10 @@ class Conditions extends Validator
         $count = 0;
 
         foreach ($value as $condition) {
+            if (!\is_array($condition) && !\is_string($condition)) {
+                return false;
+            }
+
             if (!$this->isValidCondition($condition, $count)) {
                 return false;
             }

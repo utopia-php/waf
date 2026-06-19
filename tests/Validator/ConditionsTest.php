@@ -64,6 +64,20 @@ class ConditionsTest extends TestCase
         ]));
     }
 
+    public function testRejectsMixedConditionTypes(): void
+    {
+        $validator = new Conditions();
+
+        $this->assertFalse($validator->isValid([
+            Condition::startsWith('path', '/v1')->toArray(),
+            null,
+        ]));
+
+        $this->assertFalse($validator->isValid([
+            123,
+        ]));
+    }
+
     public function testRejectsTooManyConditions(): void
     {
         $validator = new Conditions(maxConditions: 1);
