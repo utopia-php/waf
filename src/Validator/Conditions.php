@@ -36,7 +36,7 @@ class Conditions extends Validator
         $count = 0;
 
         foreach ($value as $condition) {
-            if (!\is_array($condition) || !$this->isValidCondition($condition, $count)) {
+            if (!$this->isValidCondition($condition, $count)) {
                 return false;
             }
         }
@@ -50,10 +50,22 @@ class Conditions extends Validator
     }
 
     /**
-     * @param array<string, mixed> $payload
+     * @param array<string, mixed>|string $payload
      */
-    private function isValidCondition(array $payload, int &$count): bool
+    private function isValidCondition(array|string $payload, int &$count): bool
     {
+        if (\is_string($payload)) {
+            if ($this->maxPayloadLength > 0 && \strlen($payload) > $this->maxPayloadLength) {
+                return false;
+            }
+
+            try {
+                $payload = Condition::decode($payload)->toArray();
+            } catch (\Throwable) {
+                return false;
+            }
+        }
+
         $count++;
 
         if ($this->maxConditions > 0 && $count > $this->maxConditions) {

@@ -33,12 +33,21 @@ class ConditionsTest extends TestCase
         ]));
     }
 
-    public function testRejectsConditionStrings(): void
+    public function testAcceptsEncodedConditionStrings(): void
+    {
+        $validator = new Conditions();
+
+        $this->assertTrue($validator->isValid([
+            Condition::startsWith('path', '/v1')->encode(),
+        ]));
+    }
+
+    public function testRejectsInvalidConditionStrings(): void
     {
         $validator = new Conditions();
 
         $this->assertFalse($validator->isValid([
-            Condition::startsWith('path', '/v1')->encode(),
+            '{"method":',
         ]));
     }
 
@@ -77,12 +86,33 @@ class ConditionsTest extends TestCase
         ]));
     }
 
+    public function testRejectsTooManyNestedEncodedConditions(): void
+    {
+        $validator = new Conditions(maxConditions: 2);
+
+        $this->assertFalse($validator->isValid([
+            Condition::and([
+                Condition::equal('ip', ['198.51.100.5']),
+                Condition::startsWith('path', '/v1'),
+            ])->encode(),
+        ]));
+    }
+
     public function testRejectsLongConditionArrays(): void
     {
         $validator = new Conditions(maxPayloadLength: 64);
 
         $this->assertFalse($validator->isValid([
             Condition::equal('ip', [\str_repeat('1', 128)])->toArray(),
+        ]));
+    }
+
+    public function testRejectsLongConditionStrings(): void
+    {
+        $validator = new Conditions(maxPayloadLength: 64);
+
+        $this->assertFalse($validator->isValid([
+            Condition::equal('ip', [\str_repeat('1', 128)])->encode(),
         ]));
     }
 
