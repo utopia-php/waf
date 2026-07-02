@@ -27,7 +27,11 @@ final class Issuer
     /**
      * Mint a challenge for the given context.
      *
-     * @return array{nonce: string, difficulty: int, algorithm: string, expiresAt: int}
+     * `expiresAt` is an absolute timestamp for convenience; `expiresIn` is the
+     * same deadline expressed relative to issuance, which clients should prefer
+     * so a skewed local clock does not shorten or extend the solve window.
+     *
+     * @return array{nonce: string, difficulty: int, algorithm: string, expiresAt: int, expiresIn: int}
      */
     public function issue(Context $context, int $difficulty = self::DIFFICULTY_DEFAULT): array
     {
@@ -53,6 +57,7 @@ final class Issuer
             'difficulty' => $difficulty,
             'algorithm' => self::ALGORITHM,
             'expiresAt' => $expiresAt,
+            'expiresIn' => self::NONCE_TTL,
         ];
     }
 }

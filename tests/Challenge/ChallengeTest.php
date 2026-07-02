@@ -155,6 +155,9 @@ class ChallengeTest extends TestCase
         // difficulty (2^16 ~ 65k hashes, well under a second).
         $challenge = $issuer->issue($this->context(), Issuer::DIFFICULTY_MIN);
         $this->assertSame(Issuer::DIFFICULTY_MIN, $challenge['difficulty']);
+        $this->assertSame(Issuer::ALGORITHM, $challenge['algorithm']);
+        $this->assertSame(Issuer::NONCE_TTL, $challenge['expiresIn']);
+        $this->assertSame($challenge['expiresIn'], $challenge['expiresAt'] - \time());
 
         $solution = $this->solve($challenge['nonce'], $challenge['difficulty']);
 
