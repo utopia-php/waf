@@ -164,6 +164,24 @@ class ChallengeTest extends TestCase
         $this->assertTrue($verifier->verify($challenge['nonce'], $solution, $this->context()));
     }
 
+    public function testNonceCarriesClearanceTtlRoundTrip(): void
+    {
+        $signer = new Signer(self::SECRET);
+        $issuer = new Issuer($signer);
+
+        // No ttl requested -> nonce carries none.
+        $plain = $issuer->issue($this->context(), Issuer::DIFFICULTY_MIN);
+        $this->assertNull($issuer->clearanceTtl($plain['nonce']));
+
+        // Requested ttl is carried verbatim inside the signed nonce so the solve
+        // endpoint can honour the rule's configured lifetime.
+        $challenge = $issuer->issue($this->context(), Issuer::DIFFICULTY_MIN, 1800);
+        $this->assertSame(1800, $issuer->clearanceTtl($challenge['nonce']));
+
+        // A tampered nonce yields no ttl (signature no longer parses).
+        $this->assertNull($issuer->clearanceTtl($challenge['nonce'] . 'x'));
+    }
+
     public function testVerifyRejectsInsufficientWork(): void
     {
         $signer = new Signer(self::SECRET);

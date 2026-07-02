@@ -31,16 +31,22 @@ final class Issuer
      * same deadline expressed relative to issuance, which clients should prefer
      * so a skewed local clock does not shorten or extend the solve window.
      *
+     * `$clearanceTtl`, when given, is carried inside the signed nonce (claim
+     * `ctl`) so the solve endpoint — which only receives the nonce, never the
+     * matched rule — can mint the clearance with the rule's configured lifetime.
+     * It is authenticated by the nonce signature; read it back with
+     * {@see self::clearanceTtl()} after verification.
+     *
      * @return array{nonce: string, difficulty: int, algorithm: string, expiresAt: int, expiresIn: int}
      */
-    public function issue(Context $context, int $difficulty = self::DIFFICULTY_DEFAULT): array
+    public function issue(Context $context, int $difficulty = self::DIFFICULTY_DEFAULT, ?int $clearanceTtl = null): array
     {
         $difficulty = \max(self::DIFFICULTY_MIN, \min(self::DIFFICULTY_MAX, $difficulty));
 
         $issuedAt = \time();
         $expiresAt = $issuedAt + self::NONCE_TTL;
 
-        $nonce = $this->signer->sign([
+        $claims = [
             'typ' => 'pow',
             'ver' => 1,
             'pid' => $context->projectId,
@@ -50,7 +56,13 @@ final class Issuer
             'iat' => $issuedAt,
             'exp' => $expiresAt,
             'rnd' => \bin2hex(\random_bytes(16)),
-        ]);
+        ];
+
+        if ($clearanceTtl !== null) {
+            $claims['ctl'] = $clearanceTtl;
+        }
+
+        $nonce = $this->signer->sign($claims);
 
         return [
             'nonce' => $nonce,
@@ -59,5 +71,21 @@ final class Issuer
             'expiresAt' => $expiresAt,
             'expiresIn' => self::NONCE_TTL,
         ];
+    }
+
+    /**
+     * Read the clearance TTL carried by a nonce, or null when it carries none.
+     *
+     * The caller MUST have already verified the nonce (see Verifier); this only
+     * decodes the signed claims and does not re-check authenticity or expiry.
+     */
+    public function clearanceTtl(string $nonce): ?int
+    {
+        $claims = $this->signer->parse($nonce);
+        if ($claims === null || !isset($claims['ctl']) || !\is_int($claims['ctl'])) {
+            return null;
+        }
+
+        return $claims['ctl'];
     }
 }
