@@ -36,6 +36,12 @@ final class Signer
             throw new ChallengeException('Challenge signing secret must not be empty.');
         }
 
+        foreach ($previousSecrets as $previousKid => $previousSecret) {
+            if ($previousSecret === '') {
+                throw new ChallengeException('Previous challenge secret for kid ' . $previousKid . ' must not be empty.');
+            }
+        }
+
         $this->keyset = [$kid => $secret] + $previousSecrets;
     }
 
@@ -111,9 +117,11 @@ final class Signer
     public function fingerprintIp(string $ip, ?int $kid = null): string
     {
         $kid ??= $this->kid;
-        $secret = $this->keyset[$kid] ?? $this->secret;
+        if (!isset($this->keyset[$kid])) {
+            throw new ChallengeException('Unknown key id: ' . $kid);
+        }
 
-        return \substr(\hash_hmac('sha256', Ip::prefix($ip), $secret), 0, 16);
+        return \substr(\hash_hmac('sha256', Ip::prefix($ip), $this->keyset[$kid]), 0, 16);
     }
 
     private function hmac(string $payload, string $secret): string

@@ -83,8 +83,6 @@ final class Verifier
 
                 $bits++;
             }
-
-            break;
         }
 
         return $bits;

@@ -63,6 +63,20 @@ class ChallengeTest extends TestCase
         new Signer('');
     }
 
+    public function testSignerRejectsEmptyPreviousSecret(): void
+    {
+        $this->expectException(ChallengeException::class);
+        new Signer(self::SECRET, kid: 2, previousSecrets: [1 => '']);
+    }
+
+    public function testFingerprintIpRejectsUnknownKid(): void
+    {
+        $signer = new Signer(self::SECRET, kid: 1);
+
+        $this->expectException(ChallengeException::class);
+        $signer->fingerprintIp('203.0.113.9', 9);
+    }
+
     public function testSignParseRoundTrip(): void
     {
         $signer = new Signer(self::SECRET);
@@ -137,28 +151,14 @@ class ChallengeTest extends TestCase
         $issuer = new Issuer($signer);
         $verifier = new Verifier($signer);
 
-        // Low difficulty keeps the brute-force fast and deterministic.
+        // Drive the real Issuer -> Verifier path at the clamped minimum
+        // difficulty (2^16 ~ 65k hashes, well under a second).
         $challenge = $issuer->issue($this->context(), Issuer::DIFFICULTY_MIN);
-        $nonce = $challenge['nonce'];
-        $solution = $this->solve($nonce, 8);
+        $this->assertSame(Issuer::DIFFICULTY_MIN, $challenge['difficulty']);
 
-        // Re-issue at difficulty 8 for the positive case would need a private hook;
-        // instead assert against a nonce we can satisfy by lowering the bar via a
-        // dedicated low-difficulty signer token.
-        $lowNonce = $signer->sign([
-            'typ' => 'pow',
-            'pid' => 'proj-123',
-            'aud' => 'api',
-            'iph' => $signer->fingerprintIp('203.0.113.9'),
-            'dif' => 8,
-            'iat' => \time(),
-            'exp' => \time() + 120,
-        ]);
-        $lowSolution = $this->solve($lowNonce, 8);
+        $solution = $this->solve($challenge['nonce'], $challenge['difficulty']);
 
-        $this->assertTrue($verifier->verify($lowNonce, $lowSolution, $this->context()));
-        $this->assertIsString($nonce);
-        $this->assertIsString($solution);
+        $this->assertTrue($verifier->verify($challenge['nonce'], $solution, $this->context()));
     }
 
     public function testVerifyRejectsInsufficientWork(): void
