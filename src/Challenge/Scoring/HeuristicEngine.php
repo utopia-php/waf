@@ -37,6 +37,12 @@ final class HeuristicEngine implements Engine
     /** Score ceiling applied when the client passed the interaction challenge. */
     public const INTERACTION_PASS_CEILING = 0.10;
 
+    /** ATTACK_SCORE at/above this floors the verdict to deny (a certain attack). */
+    public const ATTACK_DENY_FLOOR = 0.85;
+
+    /** ATTACK_SCORE at/above this floors the verdict to at least challenge. */
+    public const ATTACK_CHALLENGE_FLOOR = 0.40;
+
     /**
      * @var array<string, float>
      */
@@ -87,6 +93,23 @@ final class HeuristicEngine implements Engine
             $value = \min($value, self::INTERACTION_PASS_CEILING);
         }
 
+        // Attacks are decisive, not fuzzy. A request-inspection verdict floors the
+        // score to the matching gate — kept OUT of the weighted sum so it can't be
+        // diluted, and applied AFTER the interaction cap so a solved challenge
+        // never excuses an injection. High confidence ⇒ deny (you block an attack,
+        // you don't challenge it); moderate ⇒ at least challenge.
+        $attack = $signals->float(Signal::ATTACK_SCORE);
+        if ($attack >= self::ATTACK_DENY_FLOOR) {
+            $value = \max($value, $this->threshold(RiskTier::DENY));
+        } elseif ($attack >= self::ATTACK_CHALLENGE_FLOOR) {
+            $value = \max($value, $this->threshold(RiskTier::CHALLENGE));
+        }
+
         return new Score($value, RiskTier::fromScore($value, $this->thresholds), $contributions);
+    }
+
+    private function threshold(RiskTier $tier): float
+    {
+        return $this->thresholds[$tier->value] ?? RiskTier::DEFAULT_THRESHOLDS[$tier->value] ?? 0.0;
     }
 }

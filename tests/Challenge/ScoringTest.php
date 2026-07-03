@@ -158,4 +158,47 @@ class ScoringTest extends TestCase
         $this->assertFalse($row['enforced']);
         $this->assertSame(['headless' => 0.8], $row['signals']);
     }
+
+    public function testCertainAttackFloorsToDeny(): void
+    {
+        // a clear attack blocks even with no other signals
+        $score = (new HeuristicEngine())->score((new Signals())->with(Signal::ATTACK_SCORE, 1.0));
+        $this->assertSame(RiskTier::DENY, $score->tier);
+    }
+
+    public function testModerateAttackFloorsToChallenge(): void
+    {
+        $score = (new HeuristicEngine())->score((new Signals())->with(Signal::ATTACK_SCORE, 0.5));
+        $this->assertSame(RiskTier::CHALLENGE, $score->tier);
+    }
+
+    public function testLowAttackScoreDoesNotFloor(): void
+    {
+        $score = (new HeuristicEngine())->score((new Signals())->with(Signal::ATTACK_SCORE, 0.2));
+        $this->assertSame(RiskTier::ALLOW, $score->tier);
+    }
+
+    public function testAttackFloorOverridesInteractionCap(): void
+    {
+        // you never excuse an injection because a challenge was solved
+        $score = (new HeuristicEngine())->score(
+            (new Signals())
+                ->with(Signal::ATTACK_SCORE, 1.0)
+                ->with(Signal::INTERACTION_PASSED, true)
+        );
+        $this->assertSame(RiskTier::DENY, $score->tier);
+    }
+
+    public function testAttackScoreIsNotDilutedByWeightedSum(): void
+    {
+        // ATTACK_SCORE is a floor, not a weighted contribution — it never appears
+        // in contributions and never shifts the denominator of the other signals
+        $score = (new HeuristicEngine())->score(
+            (new Signals())
+                ->with(Signal::IP_REPUTATION, 1.0)
+                ->with(Signal::ATTACK_SCORE, 1.0)
+        );
+        $this->assertArrayNotHasKey(Signal::ATTACK_SCORE, $score->contributions);
+        $this->assertArrayHasKey(Signal::IP_REPUTATION, $score->contributions);
+    }
 }

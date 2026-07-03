@@ -36,6 +36,17 @@ final class Signal
     /** float [0,1] — proportion of expected real-browser request headers that are absent. */
     public const MISSING_HEADERS = 'missingHeaders';
 
+    /**
+     * float [0,1] — normalized attack confidence from the request-inspection layer
+     * (Coraza / OWASP CRS anomaly score, {@see AttackScore}). Decisive rather than
+     * fuzzy: a high value floors the verdict to deny (see HeuristicEngine) — you
+     * block an injection, you do not challenge it.
+     */
+    public const ATTACK_SCORE = 'attackScore';
+
+    /** string — matched attack categories (sqli/xss/rce…), carried for logging (not scored). */
+    public const ATTACK_CATEGORIES = 'attackCategories';
+
     /* --- Client-side (edge interstitial only) --- */
 
     /** float [0,1] — headless/automation indicators (navigator.webdriver, missing plugins…). */
@@ -62,6 +73,8 @@ final class Signal
         self::TLS_MISMATCH,
         self::TLS_FINGERPRINT,
         self::MISSING_HEADERS,
+        self::ATTACK_SCORE,
+        self::ATTACK_CATEGORIES,
     ];
 
     /**
