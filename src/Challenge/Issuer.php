@@ -3,7 +3,7 @@
 namespace Utopia\WAF\Challenge;
 
 /**
- * Issues proof-of-work challenges.
+ * Issues WAF challenges.
  *
  * The client must find a `solution` such that
  * `sha256(nonce . '.' . solution)` has at least `difficulty` leading zero bits.
@@ -47,7 +47,7 @@ final class Issuer
         $expiresAt = $issuedAt + self::NONCE_TTL;
 
         $claims = [
-            'typ' => 'pow',
+            'typ' => 'challenge',
             'ver' => 1,
             'pid' => $context->projectId,
             'aud' => $context->audience,

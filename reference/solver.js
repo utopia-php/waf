@@ -1,4 +1,4 @@
-// Canonical proof-of-work solver for the Appwrite WAF challenge.
+// Canonical solver for the Appwrite WAF challenge.
 //
 // This is the single source of truth for the browser interstitial (inlined into
 // Utopia\WAF\Challenge\Interstitial on the edge) and the SDK retry interceptors

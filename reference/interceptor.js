@@ -69,7 +69,7 @@ function createInterceptor(opts) {
       const { nonce, difficulty, expiresIn } = readChallenge(res);
       const solution = await solveChallenge(nonce, difficulty);
       // Solve UNAUTHENTICATED: send only the project header — never the API key
-      // or session. Solving a proof-of-work is not a scoped operation, and a
+      // or session. Solving a challenge is not a scoped operation, and a
       // narrowly-scoped server key would otherwise be rejected by the scope
       // check. The server route accepts guests here (scope 'public'/'global').
       const solveRes = await opts.doFetch(opts.endpoint + '/waf/challenge', {

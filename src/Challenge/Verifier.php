@@ -3,7 +3,7 @@
 namespace Utopia\WAF\Challenge;
 
 /**
- * Verifies proof-of-work solutions in constant work (one hash).
+ * Verifies challenge solutions in constant work (one hash).
  *
  * A solution is accepted only when the nonce is authentic, unexpired, bound to
  * the same context, and `sha256(nonce . '.' . solution)` meets the difficulty
@@ -28,7 +28,7 @@ final class Verifier
         }
 
         $claims = $this->signer->parse($nonce);
-        if ($claims === null || ($claims['typ'] ?? null) !== 'pow') {
+        if ($claims === null || ($claims['typ'] ?? null) !== 'challenge') {
             return false;
         }
 

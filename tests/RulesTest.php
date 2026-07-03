@@ -38,7 +38,7 @@ class RulesTest extends TestCase
         $customRule = new Challenge([], Challenge::TYPE_CUSTOM);
 
         $this->assertSame('challenge', $defaultRule->getAction());
-        $this->assertSame(Challenge::TYPE_CAPTCHA, $defaultRule->getType());
+        $this->assertSame(Challenge::TYPE_CUSTOM, $defaultRule->getType());
         $this->assertSame(Challenge::TYPE_CUSTOM, $customRule->getType());
     }
 

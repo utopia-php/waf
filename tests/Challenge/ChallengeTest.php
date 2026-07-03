@@ -145,7 +145,7 @@ class ChallengeTest extends TestCase
         $this->assertSame(Issuer::DIFFICULTY_MAX, $issuer->issue($this->context(), 999)['difficulty']);
     }
 
-    public function testProofOfWorkRoundTrip(): void
+    public function testChallengeRoundTrip(): void
     {
         $signer = new Signer(self::SECRET);
         $issuer = new Issuer($signer);
@@ -210,7 +210,7 @@ class ChallengeTest extends TestCase
 
         // Hand-craft an already-expired nonce at difficulty 1 (trivially solvable).
         $nonce = $signer->sign([
-            'typ' => 'pow',
+            'typ' => 'challenge',
             'pid' => 'proj-123',
             'aud' => 'api',
             'iph' => $signer->fingerprintIp('203.0.113.9'),
@@ -229,7 +229,7 @@ class ChallengeTest extends TestCase
         $verifier = new Verifier($signer);
 
         $nonce = $signer->sign([
-            'typ' => 'pow',
+            'typ' => 'challenge',
             'pid' => 'proj-123',
             'aud' => 'api',
             'iph' => $signer->fingerprintIp('203.0.113.9'),
@@ -290,12 +290,12 @@ class ChallengeTest extends TestCase
         $clearance = new Clearance($signer);
         $verifier = new Verifier($signer);
 
-        // A clearance token must not be accepted as a PoW nonce, and vice versa.
+        // A clearance token must not be accepted as a challenge nonce, and vice versa.
         $clr = $clearance->issue($this->context());
         $this->assertFalse($verifier->verify($clr, '0', $this->context()));
 
-        $pow = (new Issuer($signer))->issue($this->context())['nonce'];
-        $this->assertFalse($clearance->verify($pow, $this->context()));
+        $challengeNonce = (new Issuer($signer))->issue($this->context())['nonce'];
+        $this->assertFalse($clearance->verify($challengeNonce, $this->context()));
     }
 
     public function testClearanceRejectsWrongNetwork(): void

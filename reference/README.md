@@ -1,7 +1,7 @@
 # WAF Challenge — JS reference
 
 Version-locked JavaScript companions to the PHP `Utopia\WAF\Challenge`
-primitives. These are the **single source of truth** for the proof-of-work
+primitives. These are the **single source of truth** for the challenge
 solver used by two consumers:
 
 - the **edge browser interstitial** (`Utopia\WAF\Challenge\Interstitial` inlines
@@ -15,7 +15,7 @@ Keeping them here, next to the primitives, means the solver and the
 
 | File | Purpose |
 | --- | --- |
-| `solver.js` | Dependency-free pure-JS SHA-256 + proof-of-work solver. `solve()` (chunked/yielding, for browsers) and `solveSync()` (blocking, for node). Mirrors the PHP `Verifier` leading-zero-bit rule exactly. |
+| `solver.js` | Dependency-free pure-JS SHA-256 + challenge solver. `solve()` (chunked/yielding, for browsers) and `solveSync()` (blocking, for node). Mirrors the PHP `Verifier` leading-zero-bit rule exactly. |
 | `interceptor.js` | Reference SDK retry interceptor: single-flight solve, token caching with a skew-safe deadline, one re-solve on a stale-token 403, never loops. |
 
 ## Contract
@@ -55,6 +55,6 @@ header exposure), then node.
 
 Before tagging `0.1.0`, run `solver.js` on the reference devices (mid-range
 Android, ~3-gen-old iPhone/Safari, low-end laptop). Acceptance: **p95 solve ≤ 4 s**
-on the mid-range Android at `DIFFICULTY_DEFAULT_BROWSER`. PoW solve time is
+on the mid-range Android at `DIFFICULTY_DEFAULT_BROWSER`. Challenge solve time is
 exponentially distributed (p95 ≈ 3× median), so target median ≤ ~1.3 s. Set the
 final `DIFFICULTY_DEFAULT_BROWSER` to the largest value that passes.
