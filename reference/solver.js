@@ -8,12 +8,15 @@
 // mirrors the PHP Verifier exactly.
 //
 // Contract: find the smallest non-negative integer `solution` such that
-//   sha256(nonce + '.' + solution)  has >= difficulty leading zero bits.
+//   digest(nonce + '.' + solution)  has >= difficulty leading zero bits,
+// where digest is plain sha256, or the memory-hard `romix` (see below) when the
+// challenge is issued with a `memory` cost. Both mirror the PHP Utopia\WAF\
+// Challenge\Pow exactly.
 //
 // Usage (async, yields between chunks so a browser tab stays responsive):
-//   const solution = await solve(nonce, difficulty, { onProgress: p => ... });
+//   const solution = await solve(nonce, difficulty, { memory, onProgress });
 // Usage (synchronous, for node/server callers):
-//   const solution = solveSync(nonce, difficulty);
+//   const solution = solveSync(nonce, difficulty, memory);
 
 'use strict';
 
@@ -109,23 +112,51 @@ function leadingZeroBits(digest) {
   return bits;
 }
 
-function meets(nonce, solution, difficulty) {
-  return leadingZeroBits(sha256Bytes(utf8Bytes(nonce + '.' + solution))) >= difficulty;
+// Sequential memory-hard hash — a SHA-256 ROMix, byte-for-byte identical to the
+// PHP Utopia\WAF\Challenge\Pow::romix. Fills a `memory`-block (×32 B) scratchpad
+// by iterated hashing, then mixes with data-dependent reads so the whole buffer
+// must stay resident. Raises the per-attempt cost floor and, crucially, bounds
+// it by memory bandwidth rather than core count.
+function romix(inputBytes, memory) {
+  const V = new Array(memory);
+  V[0] = sha256Bytes(inputBytes);
+  for (let i = 1; i < memory; i++) V[i] = sha256Bytes(V[i - 1]);
+  let x = V[memory - 1];
+  const xor = new Uint8Array(32);
+  for (let i = 0; i < memory; i++) {
+    const j = (((x[0] << 24) | (x[1] << 16) | (x[2] << 8) | x[3]) >>> 0) % memory;
+    const vj = V[j];
+    for (let k = 0; k < 32; k++) xor[k] = x[k] ^ vj[k];
+    x = sha256Bytes(xor);
+  }
+  return x;
+}
+
+function powDigest(inputBytes, memory) {
+  return memory > 0 ? romix(inputBytes, memory) : sha256Bytes(inputBytes);
+}
+
+function meets(nonce, solution, difficulty, memory) {
+  return leadingZeroBits(powDigest(utf8Bytes(nonce + '.' + solution), memory || 0)) >= difficulty;
 }
 
 // Synchronous solve — for native/server callers (node interceptor) where blocking
 // the event loop for a few hundred ms of native-fast hashing is acceptable.
-function solveSync(nonce, difficulty) {
+function solveSync(nonce, difficulty, memory) {
+  memory = memory || 0;
   for (let n = 0; ; n++) {
-    if (meets(nonce, String(n), difficulty)) return String(n);
+    if (meets(nonce, String(n), difficulty, memory)) return String(n);
   }
 }
 
 // Chunked, yielding solve — for the browser, so the tab stays responsive and a
-// progress callback can drive a UI. Resolves with the solution string.
+// progress callback can drive a UI. Resolves with the solution string. A
+// memory-hard challenge (opts.memory > 0) costs far more per attempt, so the
+// chunk is smaller to keep each frame short.
 function solve(nonce, difficulty, opts) {
   opts = opts || {};
-  const chunk = opts.chunk || 2000;
+  const memory = opts.memory || 0;
+  const chunk = opts.chunk || (memory > 0 ? 25 : 2000);
   const yieldTo = (typeof requestAnimationFrame === 'function')
     ? requestAnimationFrame
     : (fn) => setTimeout(fn, 0);
@@ -135,7 +166,7 @@ function solve(nonce, difficulty, opts) {
     function step() {
       const end = n + chunk;
       for (; n < end; n++) {
-        if (meets(nonce, String(n), difficulty)) { resolve(String(n)); return; }
+        if (meets(nonce, String(n), difficulty, memory)) { resolve(String(n)); return; }
       }
       if (opts.onProgress) opts.onProgress(Math.min(0.99, n / expectedTotal));
       yieldTo(step);
@@ -145,5 +176,5 @@ function solve(nonce, difficulty, opts) {
 }
 
 if (typeof module !== 'undefined' && module.exports) {
-  module.exports = { solve, solveSync, meets, sha256Bytes, leadingZeroBits, utf8Bytes };
+  module.exports = { solve, solveSync, meets, romix, powDigest, sha256Bytes, leadingZeroBits, utf8Bytes };
 }

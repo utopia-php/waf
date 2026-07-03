@@ -3,11 +3,12 @@
 namespace Utopia\WAF\Challenge;
 
 /**
- * Verifies challenge solutions in constant work (one hash).
+ * Verifies challenge solutions in bounded work (one proof-of-work digest).
  *
  * A solution is accepted only when the nonce is authentic, unexpired, bound to
- * the same context, and `sha256(nonce . '.' . solution)` meets the difficulty
- * baked into the nonce.
+ * the same context, and the proof-of-work digest of `nonce . '.' . solution`
+ * meets the difficulty baked into the nonce. The digest is plain SHA-256, or the
+ * memory-hard variant when the nonce carries a `mem` cost (see {@see Pow}).
  */
 final class Verifier
 {
@@ -54,37 +55,13 @@ final class Verifier
             return false;
         }
 
-        $digest = \hash(Issuer::ALGORITHM, $nonce . '.' . $solution, true);
-
-        return self::leadingZeroBits($digest) >= $difficulty;
-    }
-
-    /**
-     * Count leading zero bits across the raw (binary) digest.
-     */
-    private static function leadingZeroBits(string $digest): int
-    {
-        $bits = 0;
-        $length = \strlen($digest);
-
-        for ($i = 0; $i < $length; $i++) {
-            $byte = \ord($digest[$i]);
-
-            if ($byte === 0) {
-                $bits += 8;
-
-                continue;
-            }
-
-            for ($mask = 0x80; $mask > 0; $mask >>= 1) {
-                if (($byte & $mask) !== 0) {
-                    return $bits;
-                }
-
-                $bits++;
-            }
+        // Memory-hard cost, when the nonce carries one. The nonce is HMAC-signed,
+        // so `mem` cannot be forged; the clamp is a defensive bound on verify work.
+        $memory = (int) ($claims['mem'] ?? 0);
+        if ($memory > 0) {
+            $memory = \min($memory, Issuer::MEMORY_MAX);
         }
 
-        return $bits;
+        return Pow::meets($nonce . '.' . $solution, $difficulty, $memory);
     }
 }

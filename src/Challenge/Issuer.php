@@ -5,10 +5,12 @@ namespace Utopia\WAF\Challenge;
 /**
  * Issues WAF challenges.
  *
- * The client must find a `solution` such that
- * `sha256(nonce . '.' . solution)` has at least `difficulty` leading zero bits.
- * The nonce is a signed, short-lived, context-bound token — issuance is stateless
- * and verification (see Verifier) is a single hash.
+ * The client must find a `solution` such that the proof-of-work digest of
+ * `nonce . '.' . solution` has at least `difficulty` leading zero bits. The
+ * digest is plain SHA-256 by default, or a memory-hard variant when the challenge
+ * is minted with a `memory` cost (see {@see Pow}). The nonce is a signed,
+ * short-lived, context-bound token — issuance is stateless and verification (see
+ * Verifier) recomputes a single digest.
  */
 final class Issuer
 {
@@ -16,9 +18,24 @@ final class Issuer
     public const DIFFICULTY_DEFAULT = 20;
     public const DIFFICULTY_MAX = 24;
 
+    /**
+     * Memory-hard mode. `memory` is the scratchpad size in 32-byte blocks; each
+     * solution attempt fills and randomly reads it (see {@see Pow::romix()}).
+     * Because a memory-hard attempt costs ~2·memory hashes, the difficulty band
+     * is far lower than the CPU-only one — few attempts, each expensive — so the
+     * browser stays responsive while a farm loses its parallelism advantage.
+     */
+    public const MEMORY_MIN = 1;
+    public const MEMORY_DEFAULT = 512; // 512 blocks × 32 B = 16 KB scratchpad
+    public const MEMORY_MAX = 4096;    // 128 KB
+
+    public const MEMORY_DIFFICULTY_MIN = 4;
+    public const MEMORY_DIFFICULTY_DEFAULT = 8;
+    public const MEMORY_DIFFICULTY_MAX = 12;
+
     public const NONCE_TTL = 120;
 
-    public const ALGORITHM = 'sha256';
+    public const ALGORITHM = Pow::ALGORITHM_SHA256;
 
     public function __construct(private readonly Signer $signer)
     {
@@ -37,11 +54,20 @@ final class Issuer
      * It is authenticated by the nonce signature; read it back with
      * {@see self::clearanceTtl()} after verification.
      *
-     * @return array{nonce: string, difficulty: int, algorithm: string, expiresAt: int, expiresIn: int}
+     * `$memory`, when greater than zero, switches the challenge to the memory-hard
+     * proof of work and is clamped to `[MEMORY_MIN, MEMORY_MAX]`; the difficulty is
+     * then interpreted (and clamped) in the lower memory-mode band. It is carried
+     * in the signed nonce (claim `mem`) so the Verifier recomputes the same digest.
+     *
+     * @return array{nonce: string, difficulty: int, algorithm: string, memory: int, expiresAt: int, expiresIn: int}
      */
-    public function issue(Context $context, int $difficulty = self::DIFFICULTY_DEFAULT, ?int $clearanceTtl = null): array
+    public function issue(Context $context, int $difficulty = self::DIFFICULTY_DEFAULT, ?int $clearanceTtl = null, int $memory = 0): array
     {
-        $difficulty = \max(self::DIFFICULTY_MIN, \min(self::DIFFICULTY_MAX, $difficulty));
+        $memory = $memory > 0 ? \max(self::MEMORY_MIN, \min(self::MEMORY_MAX, $memory)) : 0;
+
+        $difficulty = $memory > 0
+            ? \max(self::MEMORY_DIFFICULTY_MIN, \min(self::MEMORY_DIFFICULTY_MAX, $difficulty))
+            : \max(self::DIFFICULTY_MIN, \min(self::DIFFICULTY_MAX, $difficulty));
 
         $issuedAt = \time();
         $expiresAt = $issuedAt + self::NONCE_TTL;
@@ -58,6 +84,10 @@ final class Issuer
             'rnd' => \bin2hex(\random_bytes(16)),
         ];
 
+        if ($memory > 0) {
+            $claims['mem'] = $memory;
+        }
+
         if ($clearanceTtl !== null) {
             $claims['ctl'] = $clearanceTtl;
         }
@@ -67,7 +97,8 @@ final class Issuer
         return [
             'nonce' => $nonce,
             'difficulty' => $difficulty,
-            'algorithm' => self::ALGORITHM,
+            'algorithm' => Pow::algorithm($memory),
+            'memory' => $memory,
             'expiresAt' => $expiresAt,
             'expiresIn' => self::NONCE_TTL,
         ];

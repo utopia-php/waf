@@ -164,6 +164,50 @@ class ChallengeTest extends TestCase
         $this->assertTrue($verifier->verify($challenge['nonce'], $solution, $this->context()));
     }
 
+    public function testMemoryHardChallengeRoundTrip(): void
+    {
+        $signer = new Signer(self::SECRET);
+        $issuer = new Issuer($signer);
+        $verifier = new Verifier($signer);
+
+        // A memory-hard challenge advertises the romix algorithm, carries the
+        // memory cost in the (signed) nonce, and clamps the difficulty into the
+        // lower memory-mode band even though a classic-range value was requested.
+        $memory = 64; // small scratchpad keeps the test fast
+        $challenge = $issuer->issue($this->context(), Issuer::DIFFICULTY_DEFAULT, null, $memory);
+
+        $this->assertSame(\Utopia\WAF\Challenge\Pow::ALGORITHM_ROMIX, $challenge['algorithm']);
+        $this->assertSame($memory, $challenge['memory']);
+        $this->assertLessThanOrEqual(Issuer::MEMORY_DIFFICULTY_MAX, $challenge['difficulty']);
+        $this->assertGreaterThanOrEqual(Issuer::MEMORY_DIFFICULTY_MIN, $challenge['difficulty']);
+
+        // Solve with the memory-aware digest, then verify through the real path.
+        $solution = $this->solveMemoryHard($challenge['nonce'], $challenge['difficulty'], $memory);
+        $this->assertTrue($verifier->verify($challenge['nonce'], $solution, $this->context()));
+
+        // The memory-hard and classic digests of the same input are independent
+        // functions, so the mode baked into the (signed) nonce cannot be downgraded.
+        $this->assertNotSame(
+            \Utopia\WAF\Challenge\Pow::digest($challenge['nonce'] . '.' . $solution, $memory),
+            \Utopia\WAF\Challenge\Pow::digest($challenge['nonce'] . '.' . $solution, 0),
+        );
+    }
+
+    /**
+     * Brute-force a memory-hard solution (romix digest) for the given nonce.
+     */
+    private function solveMemoryHard(string $nonce, int $difficulty, int $memory): string
+    {
+        for ($i = 0; $i < 5_000_000; $i++) {
+            $solution = (string) $i;
+            if (\Utopia\WAF\Challenge\Pow::meets($nonce . '.' . $solution, $difficulty, $memory)) {
+                return $solution;
+            }
+        }
+
+        $this->fail('Could not find a memory-hard solution for difficulty ' . $difficulty);
+    }
+
     public function testNonceCarriesClearanceTtlRoundTrip(): void
     {
         $signer = new Signer(self::SECRET);
