@@ -124,6 +124,25 @@ final class Signer
         return \substr(\hash_hmac('sha256', Ip::prefix($ip), $this->keyset[$kid]), 0, 16);
     }
 
+    /**
+     * Keyed one-way hash of an arbitrary message.
+     *
+     * Used to bake a secret answer into a public token without revealing it: the
+     * client sees the MAC but, lacking the signing secret, cannot recompute it for
+     * a guessed answer — it must submit each guess to the server. Like
+     * {@see self::fingerprintIp()} it honours key rotation via the token's own kid,
+     * so a rotation does not invalidate answers in already-issued tokens.
+     */
+    public function mac(string $message, ?int $kid = null): string
+    {
+        $kid ??= $this->kid;
+        if (!isset($this->keyset[$kid])) {
+            throw new ChallengeException('Unknown key id: ' . $kid);
+        }
+
+        return \substr(\hash_hmac('sha256', $message, $this->keyset[$kid]), 0, 32);
+    }
+
     private function hmac(string $payload, string $secret): string
     {
         return \hash_hmac('sha256', $payload, $secret, true);

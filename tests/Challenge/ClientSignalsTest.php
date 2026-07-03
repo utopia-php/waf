@@ -40,7 +40,9 @@ class ClientSignalsTest extends TestCase
         $this->assertSame(0.0, $s[Signal::HEADLESS]);
         $this->assertSame(0.0, $s[Signal::AUTOMATION_FLAGS]);
         $this->assertSame(0.0, $s[Signal::BEHAVIORAL_RISK]);
-        $this->assertTrue($s[Signal::INTERACTION_PASSED]);
+        // INTERACTION_PASSED is never produced from the blob (unforgeable): it is
+        // established server-side by verifying the interactive challenge.
+        $this->assertArrayNotHasKey(Signal::INTERACTION_PASSED, $s);
     }
 
     public function testAutomationFlagsScale(): void
@@ -73,13 +75,18 @@ class ClientSignalsTest extends TestCase
         $this->assertIsFloat($s[Signal::HEADLESS]);
         $this->assertSame(0.0, $s[Signal::AUTOMATION_FLAGS]);
         $this->assertSame(1.0, $s[Signal::BEHAVIORAL_RISK]);
-        $this->assertFalse($s[Signal::INTERACTION_PASSED]);
+        $this->assertArrayNotHasKey(Signal::INTERACTION_PASSED, $s);
     }
 
-    public function testBooleanAcceptsJsonishTruth(): void
+    public function testInteractionPassedIsNeverClientAsserted(): void
     {
-        $this->assertTrue(ClientSignals::normalize(['interacted' => 1])[Signal::INTERACTION_PASSED]);
-        $this->assertTrue(ClientSignals::normalize(['interacted' => 'true'])[Signal::INTERACTION_PASSED]);
-        $this->assertFalse(ClientSignals::normalize(['interacted' => 0])[Signal::INTERACTION_PASSED]);
+        // No form of client-supplied `interacted` yields an interaction pass — the
+        // whole point of moving the humanity secret server-side.
+        foreach ([true, 1, 'true', 0, false] as $value) {
+            $this->assertArrayNotHasKey(
+                Signal::INTERACTION_PASSED,
+                ClientSignals::normalize(['interacted' => $value]),
+            );
+        }
     }
 }

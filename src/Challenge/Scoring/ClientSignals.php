@@ -12,7 +12,14 @@ namespace Utopia\WAF\Challenge\Scoring;
  *  - HEADLESS          — automation-driver / headless-browser tells
  *  - AUTOMATION_FLAGS  — framework artefacts (CDP, Selenium, phantom…)
  *  - BEHAVIORAL_RISK   — absence of human input during the interstitial
- *  - INTERACTION_PASSED— the client completed the interaction gate
+ *
+ * It deliberately does NOT produce {@see Signal::INTERACTION_PASSED}. That signal
+ * hard-caps the score, so it must be unforgeable — a client cannot be trusted to
+ * assert it. It is established server-side only, by verifying the interactive
+ * challenge whose answer the client can prove only by reading the rendered pixels
+ * (see {@see \Utopia\WAF\Challenge\Interactive}). The blob's own `interacted`
+ * flag still lowers BEHAVIORAL_RISK (real input happened) but grants no humanity
+ * pass on its own.
  *
  * Heuristics are intentionally simple and explainable (v1); an ML engine can
  * later consume the same raw blob. Every field is optional and defensively read,
@@ -31,7 +38,6 @@ final class ClientSignals
             Signal::HEADLESS => self::headless($raw),
             Signal::AUTOMATION_FLAGS => self::automation($raw),
             Signal::BEHAVIORAL_RISK => self::behavioral($raw),
-            Signal::INTERACTION_PASSED => self::boolean($raw, 'interacted'),
         ];
     }
 

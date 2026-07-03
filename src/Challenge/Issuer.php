@@ -114,8 +114,11 @@ final class Issuer
      * proportionally (16→4, 20→8, 24→12) keeps the rule's difficulty setting and
      * the adaptive ladder meaningful; a naive re-clamp would collapse every
      * CPU-band input to the memory-band maximum, i.e. the slowest possible solve.
+     *
+     * Public so the interactive challenge ({@see Interactive}), which carries its
+     * own PoW, scales difficulty identically.
      */
-    private static function toMemoryDifficulty(int $difficulty): int
+    public static function toMemoryDifficulty(int $difficulty): int
     {
         $cpu = \max(self::DIFFICULTY_MIN, \min(self::DIFFICULTY_MAX, $difficulty));
 
