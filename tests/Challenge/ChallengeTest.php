@@ -193,6 +193,29 @@ class ChallengeTest extends TestCase
         );
     }
 
+    public function testMemoryDifficultyTranslatesFromCpuBand(): void
+    {
+        $issuer = new Issuer(new Signer(self::SECRET));
+
+        // A CPU-band difficulty is mapped proportionally onto the memory band
+        // instead of being re-clamped to the band maximum, so the rule knob and
+        // the adaptive ladder keep their effect. Band edges and midpoint:
+        $cases = [
+            Issuer::DIFFICULTY_MIN => Issuer::MEMORY_DIFFICULTY_MIN,      // 16 -> 4
+            20 => 8,                                                       // midpoint
+            Issuer::DIFFICULTY_MAX => Issuer::MEMORY_DIFFICULTY_MAX,      // 24 -> 12
+        ];
+
+        foreach ($cases as $cpu => $expected) {
+            $challenge = $issuer->issue($this->context(), $cpu, null, 256);
+            $this->assertSame($expected, $challenge['difficulty'], "cpu {$cpu} should map to {$expected}");
+        }
+
+        // The default difficulty must not pin to the band maximum.
+        $default = $issuer->issue($this->context(), Issuer::DIFFICULTY_DEFAULT, null, 256);
+        $this->assertLessThan(Issuer::MEMORY_DIFFICULTY_MAX, $default['difficulty']);
+    }
+
     /**
      * Brute-force a memory-hard solution (romix digest) for the given nonce.
      */

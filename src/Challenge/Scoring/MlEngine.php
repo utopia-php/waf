@@ -103,6 +103,7 @@ final class MlEngine implements Engine
     public function score(Signals $signals): Score
     {
         $logit = $this->intercept;
+        $serverLogit = $this->intercept;
         $contributions = [];
 
         foreach ($this->coefficients as $key => $coefficient) {
@@ -117,6 +118,11 @@ final class MlEngine implements Engine
             $term = $coefficient * $value;
             $contributions[$key] = $term;
             $logit += $term;
+
+            // Track the server-observed portion for the interaction cap below.
+            if (\in_array($key, Signal::SERVER, true)) {
+                $serverLogit += $term;
+            }
         }
 
         // Squash to a calibrated P(bot) in (0,1).
@@ -124,7 +130,11 @@ final class MlEngine implements Engine
 
         // --- deterministic policy overrides (identical to HeuristicEngine) ---
         if ($signals->bool(Signal::INTERACTION_PASSED)) {
-            $value = \min($value, self::INTERACTION_PASS_CEILING);
+            // Cap the client-behavioral contribution, but never below the score
+            // the server-observed signals alone produce — a forged interaction
+            // must not erase IP/ASN reputation or a TLS mismatch.
+            $serverValue = 1.0 / (1.0 + \exp(-$serverLogit));
+            $value = \max($serverValue, \min($value, self::INTERACTION_PASS_CEILING));
         }
 
         $attack = $signals->float(Signal::ATTACK_SCORE);

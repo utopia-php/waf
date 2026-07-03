@@ -66,7 +66,7 @@ final class Issuer
         $memory = $memory > 0 ? \max(self::MEMORY_MIN, \min(self::MEMORY_MAX, $memory)) : 0;
 
         $difficulty = $memory > 0
-            ? \max(self::MEMORY_DIFFICULTY_MIN, \min(self::MEMORY_DIFFICULTY_MAX, $difficulty))
+            ? self::toMemoryDifficulty($difficulty)
             : \max(self::DIFFICULTY_MIN, \min(self::DIFFICULTY_MAX, $difficulty));
 
         $issuedAt = \time();
@@ -102,6 +102,28 @@ final class Issuer
             'expiresAt' => $expiresAt,
             'expiresIn' => self::NONCE_TTL,
         ];
+    }
+
+    /**
+     * Map a CPU-band difficulty onto the memory-hard band, preserving scale.
+     *
+     * Callers store and pass difficulty in the CPU band [DIFFICULTY_MIN,
+     * DIFFICULTY_MAX] — the rule config validator and the adaptive bump both live
+     * there. A memory-hard attempt is far more expensive than a bare SHA-256 one,
+     * so the same knob has to land in the much lower memory band. Translating
+     * proportionally (16→4, 20→8, 24→12) keeps the rule's difficulty setting and
+     * the adaptive ladder meaningful; a naive re-clamp would collapse every
+     * CPU-band input to the memory-band maximum, i.e. the slowest possible solve.
+     */
+    private static function toMemoryDifficulty(int $difficulty): int
+    {
+        $cpu = \max(self::DIFFICULTY_MIN, \min(self::DIFFICULTY_MAX, $difficulty));
+
+        $cpuSpan = self::DIFFICULTY_MAX - self::DIFFICULTY_MIN;
+        $memorySpan = self::MEMORY_DIFFICULTY_MAX - self::MEMORY_DIFFICULTY_MIN;
+        $fraction = ($cpu - self::DIFFICULTY_MIN) / $cpuSpan;
+
+        return self::MEMORY_DIFFICULTY_MIN + (int) \round($fraction * $memorySpan);
     }
 
     /**

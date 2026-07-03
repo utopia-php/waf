@@ -78,6 +78,35 @@ class MlEngineTest extends TestCase
         $this->assertSame(RiskTier::ALLOW, $score->tier);
     }
 
+    public function testPassedInteractionDoesNotEraseServerSignals(): void
+    {
+        // A forged interaction must not neutralize server-observed evidence. With
+        // strong reputation + TLS mismatch the learned server-only probability is
+        // well above the interaction ceiling, so the score cannot be capped to
+        // ALLOW — only the client-behavioral contribution is neutralized.
+        $signals = (new Signals())
+            ->with(Signal::IP_REPUTATION, 1.0)
+            ->with(Signal::ASN_REPUTATION, 1.0)
+            ->with(Signal::TLS_MISMATCH, true)
+            ->with(Signal::HEADLESS, 1.0)          // client noise — neutralized
+            ->with(Signal::AUTOMATION_FLAGS, 1.0)
+            ->with(Signal::INTERACTION_PASSED, true);
+
+        $score = $this->engine()->score($signals);
+
+        $this->assertGreaterThan(MlEngine::INTERACTION_PASS_CEILING, $score->value);
+        $this->assertNotSame(RiskTier::ALLOW, $score->tier);
+
+        // Score equals the server-only probability (client tells neutralized).
+        $serverOnly = $this->engine()->score(
+            (new Signals())
+                ->with(Signal::IP_REPUTATION, 1.0)
+                ->with(Signal::ASN_REPUTATION, 1.0)
+                ->with(Signal::TLS_MISMATCH, true)
+        );
+        $this->assertEqualsWithDelta($serverOnly->value, $score->value, 1e-9);
+    }
+
     public function testAttackScoreFloorsToDeny(): void
     {
         // A high request-inspection score is decisive: it floors the verdict to

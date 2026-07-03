@@ -72,6 +72,7 @@ final class HeuristicEngine implements Engine
     {
         $contributions = [];
         $risk = 0.0;
+        $serverRisk = 0.0;
 
         foreach ($this->weights as $key => $weight) {
             if (!$signals->has($key) || $this->totalWeight <= 0.0) {
@@ -85,12 +86,25 @@ final class HeuristicEngine implements Engine
 
             $contributions[$key] = $contribution;
             $risk += $contribution;
+
+            // Track the server-observed portion separately (see the interaction
+            // cap below).
+            if (\in_array($key, Signal::SERVER, true)) {
+                $serverRisk += $contribution;
+            }
         }
 
         $value = \max(0.0, \min(1.0, $risk));
+        $serverValue = \max(0.0, \min(1.0, $serverRisk));
 
         if ($signals->bool(Signal::INTERACTION_PASSED)) {
-            $value = \min($value, self::INTERACTION_PASS_CEILING);
+            // A passed interaction is a humanity assertion about *behaviour*, so it
+            // caps the client-behavioral noise (headless/automation/biometrics)
+            // below the first gate — but it must not floor the score under the
+            // server-observed evidence (IP/ASN reputation, TLS mismatch, missing
+            // headers), which the client cannot legitimately assert away. Without
+            // this floor a forged `interacted:true` would erase a blocklisted IP.
+            $value = \max($serverValue, \min($value, self::INTERACTION_PASS_CEILING));
         }
 
         // Attacks are decisive, not fuzzy. A request-inspection verdict floors the

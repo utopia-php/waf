@@ -103,18 +103,45 @@ class ScoringTest extends TestCase
         $this->assertEqualsWithDelta(1.0, array_sum($all->contributions), 1e-9);
     }
 
-    public function testInteractionPassHardCapsToAllow(): void
+    public function testInteractionPassHardCapsClientBehaviorToAllow(): void
     {
-        // even a fully bot-looking request is cleared once it passes the interaction challenge
+        // client-behavioral tells (headless/automation/biometrics) are neutralized
+        // once the request passes the interaction challenge
         $score = (new HeuristicEngine())->score(
             (new Signals())
-                ->with(Signal::IP_REPUTATION, 1.0)
-                ->with(Signal::TLS_MISMATCH, true)
                 ->with(Signal::HEADLESS, 1.0)
+                ->with(Signal::AUTOMATION_FLAGS, 1.0)
+                ->with(Signal::BEHAVIORAL_RISK, 1.0)
                 ->with(Signal::INTERACTION_PASSED, true)
         );
         $this->assertLessThanOrEqual(HeuristicEngine::INTERACTION_PASS_CEILING, $score->value);
         $this->assertSame(RiskTier::ALLOW, $score->tier);
+    }
+
+    public function testInteractionCeilingDoesNotEraseServerSignals(): void
+    {
+        // A forged `interacted: true` must not wipe out server-observed evidence
+        // the client cannot influence. A blocklisted IP + TLS mismatch keeps the
+        // score at (at least) what those signals alone produce, so a scripted
+        // client cannot buy its way to ALLOW by claiming interaction.
+        $signals = (new Signals())
+            ->with(Signal::IP_REPUTATION, 1.0)
+            ->with(Signal::TLS_MISMATCH, true)
+            ->with(Signal::HEADLESS, 1.0)          // client noise — neutralized
+            ->with(Signal::INTERACTION_PASSED, true);
+
+        $score = (new HeuristicEngine())->score($signals);
+
+        // Server-only contribution: (IP_REPUTATION 3 + TLS_MISMATCH 4) / 18.
+        $this->assertGreaterThan(HeuristicEngine::INTERACTION_PASS_CEILING, $score->value);
+        $this->assertNotSame(RiskTier::ALLOW, $score->tier);
+
+        // But the client-behavioral HEADLESS contribution is still neutralized:
+        // the score equals the server-only value, not the full weighted sum.
+        $serverOnly = (new HeuristicEngine())->score(
+            (new Signals())->with(Signal::IP_REPUTATION, 1.0)->with(Signal::TLS_MISMATCH, true)
+        );
+        $this->assertEqualsWithDelta($serverOnly->value, $score->value, 1e-9);
     }
 
     public function testCustomThresholdsAndWeights(): void
