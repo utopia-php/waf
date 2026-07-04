@@ -48,6 +48,19 @@ final class Interactive
     /** Max PoW solution length accepted, guarding the verify hash. */
     public const SOLUTION_MAX_LENGTH = 64;
 
+    /**
+     * Max guesses a caller should accept against a single issued token before it
+     * forces a fresh challenge. The bucket grid is coarse (~44 buckets), so a
+     * stateless verify alone would let a bot spray every bucket against one
+     * rendered image until it lands. Verification here cannot enforce this on its
+     * own — it stores no state — so the stateful caller ({@see reference()}) caps
+     * attempts per token; a miss then costs a new (render-expensive, rate-limited)
+     * challenge rather than another free guess. Pairs with the per-offset PoW
+     * binding in {@see verify()}, which also denies reusing one solved PoW across
+     * buckets.
+     */
+    public const MAX_ATTEMPTS = 3;
+
     public function __construct(private readonly Signer $signer)
     {
     }
@@ -151,7 +164,10 @@ final class Interactive
         }
 
         // The carried proof of work must be solved first: it is what makes each
-        // guess against the coarse bucket grid cost CPU.
+        // guess against the coarse bucket grid cost CPU. The submitted offset is
+        // part of the PoW preimage, so a solution is valid for exactly the offset
+        // it was solved for — one solved PoW cannot be replayed across buckets to
+        // sweep the grid for the price of a single solve.
         $difficulty = (int) ($claims['dif'] ?? 0);
         if ($difficulty <= 0) {
             return false;
@@ -160,7 +176,7 @@ final class Interactive
         if ($memory > 0) {
             $memory = \min($memory, Issuer::MEMORY_MAX);
         }
-        if (!Pow::meets($token . '.' . $powSolution, $difficulty, $memory)) {
+        if (!Pow::meets($token . '.' . $offset . '.' . $powSolution, $difficulty, $memory)) {
             return false;
         }
 
@@ -173,6 +189,26 @@ final class Interactive
         $actual = $this->signer->mac((string) ($claims['rnd'] ?? '') . '.' . $this->bucket($offset), $kid);
 
         return \hash_equals($expected, $actual);
+    }
+
+    /**
+     * A stable, opaque reference for an *authentic* interactive token — its random
+     * nonce — for a stateful caller that must cap guesses per issued image
+     * ({@see MAX_ATTEMPTS}). Returns null when the token is not signed by a known
+     * key, so a forged or garbage blob cannot seed (or exhaust) a real token's
+     * counter. Deliberately does NOT check expiry or context: it is only an
+     * identity for the counter, never an acceptance — {@see verify()} still decides.
+     */
+    public function reference(string $token): ?string
+    {
+        $claims = $this->signer->parse($token);
+        if ($claims === null || ($claims['typ'] ?? null) !== self::TYPE) {
+            return null;
+        }
+
+        $rnd = $claims['rnd'] ?? null;
+
+        return \is_string($rnd) && $rnd !== '' ? $rnd : null;
     }
 
     /**
