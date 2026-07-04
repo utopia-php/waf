@@ -58,6 +58,11 @@ final class Interactive
      * challenge rather than another free guess. Pairs with the per-offset PoW
      * binding in {@see verify()}, which also denies reusing one solved PoW across
      * buckets.
+     *
+     * Best-effort, not absolute: the caller's counter is expected to fail open
+     * (availability posture for a humanity gate), so during a limiter/Redis outage
+     * this ceiling softens and the floor degrades to the per-offset PoW alone —
+     * still one real solve per guess, just without the hard 3-strike cap.
      */
     public const MAX_ATTEMPTS = 3;
 
