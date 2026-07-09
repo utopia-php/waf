@@ -6,7 +6,6 @@ use Utopia\WAF\Rule;
 
 class Challenge extends Rule
 {
-    public const TYPE_CAPTCHA = 'captcha';
     public const TYPE_CUSTOM = 'custom';
 
     private string $type;
@@ -14,10 +13,10 @@ class Challenge extends Rule
     /**
      * @param array<\Utopia\WAF\Condition|array<string, mixed>> $conditions
      */
-    public function __construct(array $conditions = [], string $type = self::TYPE_CAPTCHA)
+    public function __construct(array $conditions = [], string $type = self::TYPE_CUSTOM)
     {
         parent::__construct($conditions);
-        if (!in_array($type, [self::TYPE_CAPTCHA, self::TYPE_CUSTOM], true)) {
+        if (!in_array($type, [self::TYPE_CUSTOM], true)) {
             throw new \InvalidArgumentException('Invalid challenge type: ' . $type);
         }
         $this->type = $type;

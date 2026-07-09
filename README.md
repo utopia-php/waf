@@ -49,7 +49,7 @@ $firewall->addRule(new Bypass([
 
 $firewall->addRule(new Challenge([
     Condition::startsWith('path', '/admin'),
-], Challenge::TYPE_CAPTCHA));
+], Challenge::TYPE_CUSTOM));
 
 $firewall->addRule(new RateLimit([
     Condition::equal('method', ['POST']),

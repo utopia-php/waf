@@ -3,9 +3,13 @@
     "description": "Lite and extensible Web Application Firewall rules management library for the Utopia PHP ecosystem.",
     "type": "library",
     "license": "MIT",
+    "repositories": [
+        {"type": "vcs", "url": "https://github.com/premtsd-code/captcha", "no-api": true}
+    ],
     "require": {
         "php": ">=8.2",
-        "utopia-php/validators": "0.2.*"
+        "utopia-php/validators": "0.2.*",
+        "premtsd-code/captcha": "dev-main"
     },
     "require-dev": {
         "laravel/pint": "^1.18",
