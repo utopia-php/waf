@@ -84,8 +84,8 @@ final class ClientSignals
 
     /**
      * Behavioral risk: absence of human input while the interstitial was shown.
-     * A real user moves the mouse / presses keys; a script solving the PoW does
-     * neither. No activity ⇒ high risk; activity drives it down.
+     * A real user moves the mouse / presses keys; a headless script attesting
+     * silently does neither. No activity ⇒ high risk; activity drives it down.
      *
      * @param array<string, mixed> $raw
      */

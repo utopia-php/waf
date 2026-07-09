@@ -3,18 +3,14 @@
 namespace Utopia\WAF\Challenge;
 
 /**
- * Verifies challenge solutions in bounded work (one proof-of-work digest).
- *
- * A solution is accepted only when the nonce is authentic, unexpired, bound to
- * the same context, and the proof-of-work digest of `nonce . '.' . solution`
- * meets the difficulty baked into the nonce. The digest is plain SHA-256, or the
- * memory-hard variant when the nonce carries a `mem` cost (see {@see SilentChallenge}).
+ * Verifies a silent-challenge nonce's integrity: authentic, unexpired, and bound
+ * to the same context. There is no proof-of-work — the silent tier's verdict comes
+ * from scoring the attested signals ({@see SilentChallenge}), not from a solved
+ * puzzle. This class answers only "is this nonce a genuine, live challenge for this
+ * client?"; the scoring engine decides human-vs-bot.
  */
 final class Verifier
 {
-    /** Maximum solution length accepted, guarding the verify hash against oversized input. */
-    public const SOLUTION_MAX_LENGTH = 64;
-
     /** Clock-skew tolerance, in seconds, applied to nonce timestamps. */
     public const LEEWAY = 5;
 
@@ -22,12 +18,12 @@ final class Verifier
     {
     }
 
-    public function verify(string $nonce, string $solution, Context $context): bool
+    /**
+     * Whether `$nonce` is an authentic, unexpired silent-challenge nonce bound to
+     * `$context` (project + audience + IP prefix). Stateless.
+     */
+    public function verify(string $nonce, Context $context): bool
     {
-        if ($solution === '' || \strlen($solution) > self::SOLUTION_MAX_LENGTH) {
-            return false;
-        }
-
         $claims = $this->signer->parse($nonce);
         if ($claims === null || ($claims['typ'] ?? null) !== 'challenge') {
             return false;
@@ -46,22 +42,7 @@ final class Verifier
 
         $kid = \is_int($claims['kid'] ?? null) ? $claims['kid'] : null;
         $expectedIp = $this->signer->fingerprintIp($context->ip, $kid);
-        if (!\hash_equals($expectedIp, (string) ($claims['iph'] ?? ''))) {
-            return false;
-        }
 
-        $difficulty = (int) ($claims['dif'] ?? 0);
-        if ($difficulty <= 0) {
-            return false;
-        }
-
-        // Memory-hard cost, when the nonce carries one. The nonce is HMAC-signed,
-        // so `mem` cannot be forged; the clamp is a defensive bound on verify work.
-        $memory = (int) ($claims['mem'] ?? 0);
-        if ($memory > 0) {
-            $memory = \min($memory, Issuer::MEMORY_MAX);
-        }
-
-        return SilentChallenge::meets($nonce . '.' . $solution, $difficulty, $memory);
+        return \hash_equals($expectedIp, (string) ($claims['iph'] ?? ''));
     }
 }

@@ -6,7 +6,7 @@ namespace Utopia\WAF\Challenge\Scoring;
  * The enforcement tier a risk score maps to — the escalation ladder.
  *
  *   allow        → let the request through untouched
- *   challenge    → impose a proof-of-work challenge (cost gate)
+ *   challenge    → impose the silent (invisible) attestation check
  *   interactive  → impose the interaction / first-party captcha (humanity gate)
  *   deny         → block outright
  *
@@ -57,9 +57,13 @@ enum RiskTier: string
 
     /**
      * Clamp a tier to what a surface can actually enforce. The cloud API has no
-     * browser page, so it cannot run the interactive challenge — an interactive
-     * verdict falls back to the strongest gate it *can* run (proof-of-work).
-     * Every other tier (including deny) is surface-agnostic.
+     * browser page, so it cannot render the interactive slider — an interactive
+     * verdict falls back to the silent (invisible) attestation check. Every other
+     * tier (including deny) is surface-agnostic.
+     *
+     * Note: the silent attestation itself is browser-collected, so a non-browser
+     * API client cannot satisfy it either; on that surface the challenge tier is
+     * effectively "score on server signals alone" (see the cloud integration).
      */
     public function clampTo(bool $interactiveCapable): self
     {
