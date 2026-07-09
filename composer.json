@@ -4,13 +4,12 @@
     "type": "library",
     "license": "MIT",
     "repositories": [
-        {"type": "vcs", "url": "https://github.com/utopia-php/abuse", "no-api": true},
         {"type": "vcs", "url": "https://github.com/premtsd-code/captcha", "no-api": true}
     ],
     "require": {
         "php": ">=8.2",
         "utopia-php/validators": "0.2.*",
-        "utopia-php/abuse": "dev-feat-captcha-facade"
+        "premtsd-code/captcha": "dev-main"
     },
     "require-dev": {
         "laravel/pint": "^1.18",
