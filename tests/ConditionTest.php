@@ -170,6 +170,62 @@ class ConditionTest extends TestCase
         $this->assertFalse($parsed->matches(['ip' => '127.0.0.1', 'path' => '/web']));
     }
 
+    public function testCaseInsensitiveMatching(): void
+    {
+        $equal = Condition::equal('country', ['IL', 'US'], caseInsensitive: true);
+        $this->assertTrue($equal->matches(['country' => 'il']));
+        $this->assertTrue($equal->matches(['country' => 'Us']));
+        $this->assertFalse($equal->matches(['country' => 'de']));
+
+        $caseSensitive = Condition::equal('country', ['IL']);
+        $this->assertFalse($caseSensitive->matches(['country' => 'il']));
+        $this->assertTrue($caseSensitive->matches(['country' => 'IL']));
+
+        $notEqual = Condition::notEqual('country', 'IL', caseInsensitive: true);
+        $this->assertFalse($notEqual->matches(['country' => 'il']));
+        $this->assertTrue($notEqual->matches(['country' => 'de']));
+
+        $contains = Condition::contains('path', ['/API'], caseInsensitive: true);
+        $this->assertTrue($contains->matches(['path' => '/api/v1']));
+
+        $arrayContains = Condition::contains('tags', ['SECURITY'], caseInsensitive: true);
+        $this->assertTrue($arrayContains->matches(['tags' => ['security', 'waf']]));
+
+        $startsWith = Condition::startsWith('path', '/Api', caseInsensitive: true);
+        $this->assertTrue($startsWith->matches(['path' => '/api/v1']));
+
+        $endsWith = Condition::endsWith('path', '.JSON', caseInsensitive: true);
+        $this->assertTrue($endsWith->matches(['path' => '/status.json']));
+    }
+
+    public function testCaseInsensitiveSerializationRoundTrip(): void
+    {
+        $condition = Condition::equal('country', ['IL'], caseInsensitive: true);
+
+        $array = $condition->toArray();
+        $this->assertTrue($array['caseInsensitive']);
+
+        $parsed = Condition::decode($condition->encode());
+        $this->assertTrue($parsed->isCaseInsensitive());
+        $this->assertTrue($parsed->matches(['country' => 'il']));
+
+        $plain = Condition::equal('country', ['IL']);
+        $this->assertArrayNotHasKey('caseInsensitive', $plain->toArray());
+        $this->assertFalse($plain->isCaseInsensitive());
+    }
+
+    public function testInvalidCaseInsensitiveThrowsException(): void
+    {
+        $this->expectException(ConditionException::class);
+
+        Condition::fromArray([
+            'method' => 'equal',
+            'attribute' => 'country',
+            'values' => ['IL'],
+            'caseInsensitive' => 'yes',
+        ]);
+    }
+
     public function testInvalidMethodThrowsException(): void
     {
         $this->expectException(ConditionException::class);

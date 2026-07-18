@@ -77,9 +77,17 @@ class Condition
     private array $values;
 
     /**
+     * When enabled, string comparisons for value based operators
+     * (equal, contains, startsWith, endsWith and their negations) are
+     * performed case-insensitively. Useful for attributes whose values are
+     * case-insensitive by nature such as ISO country codes.
+     */
+    private bool $caseInsensitive;
+
+    /**
      * @param array<mixed> $values
      */
-    public function __construct(string $method, string $attribute = '', array $values = [])
+    public function __construct(string $method, string $attribute = '', array $values = [], bool $caseInsensitive = false)
     {
         if (!self::isMethod($method)) {
             throw new ConditionException("Unsupported condition method: {$method}");
@@ -88,6 +96,7 @@ class Condition
         $this->method = $method;
         $this->attribute = $attribute;
         $this->values = $this->normalizeValues($values);
+        $this->caseInsensitive = $caseInsensitive;
     }
 
     public function __clone(): void
@@ -122,6 +131,11 @@ class Condition
         return \in_array($this->method, self::LOGICAL_TYPES, true);
     }
 
+    public function isCaseInsensitive(): bool
+    {
+        return $this->caseInsensitive;
+    }
+
     public static function isMethod(string $value): bool
     {
         return \in_array($value, self::TYPES, true);
@@ -153,6 +167,7 @@ class Condition
         $method = $payload['method'] ?? '';
         $attribute = $payload['attribute'] ?? '';
         $values = $payload['values'] ?? [];
+        $caseInsensitive = $payload['caseInsensitive'] ?? false;
 
         if (!\is_string($method)) {
             throw new ConditionException('Invalid condition method definition.');
@@ -164,6 +179,10 @@ class Condition
 
         if (!\is_array($values)) {
             throw new ConditionException('Invalid condition values definition.');
+        }
+
+        if (!\is_bool($caseInsensitive)) {
+            throw new ConditionException('Invalid condition caseInsensitive definition.');
         }
 
         if (\in_array($method, self::LOGICAL_TYPES, true)) {
@@ -179,7 +198,7 @@ class Condition
             );
         }
 
-        return new self($method, $attribute, $values);
+        return new self($method, $attribute, $values, $caseInsensitive);
     }
 
     /**
@@ -195,7 +214,8 @@ class Condition
      * @return array{
      *     method: string,
      *     attribute?: string,
-     *     values: array<mixed>
+     *     values: array<mixed>,
+     *     caseInsensitive?: bool
      * }
      */
     public function toArray(): array
@@ -213,6 +233,10 @@ class Condition
             );
         } else {
             $result['values'] = $this->values;
+        }
+
+        if ($this->caseInsensitive) {
+            $result['caseInsensitive'] = true;
         }
 
         return $result;
@@ -235,14 +259,14 @@ class Condition
     /**
      * @param array<mixed> $values
      */
-    public static function equal(string $attribute, array $values): self
+    public static function equal(string $attribute, array $values, bool $caseInsensitive = false): self
     {
-        return new self(self::TYPE_EQUAL, $attribute, $values);
+        return new self(self::TYPE_EQUAL, $attribute, $values, $caseInsensitive);
     }
 
-    public static function notEqual(string $attribute, string|int|float|bool $value): self
+    public static function notEqual(string $attribute, string|int|float|bool $value, bool $caseInsensitive = false): self
     {
-        return new self(self::TYPE_NOT_EQUAL, $attribute, [$value]);
+        return new self(self::TYPE_NOT_EQUAL, $attribute, [$value], $caseInsensitive);
     }
 
     public static function lessThan(string $attribute, string|int|float $value): self
@@ -268,17 +292,17 @@ class Condition
     /**
      * @param array<mixed> $values
      */
-    public static function contains(string $attribute, array $values): self
+    public static function contains(string $attribute, array $values, bool $caseInsensitive = false): self
     {
-        return new self(self::TYPE_CONTAINS, $attribute, $values);
+        return new self(self::TYPE_CONTAINS, $attribute, $values, $caseInsensitive);
     }
 
     /**
      * @param array<mixed> $values
      */
-    public static function notContains(string $attribute, array $values): self
+    public static function notContains(string $attribute, array $values, bool $caseInsensitive = false): self
     {
-        return new self(self::TYPE_NOT_CONTAINS, $attribute, $values);
+        return new self(self::TYPE_NOT_CONTAINS, $attribute, $values, $caseInsensitive);
     }
 
     public static function between(string $attribute, string|int|float $start, string|int|float $end): self
@@ -291,24 +315,24 @@ class Condition
         return new self(self::TYPE_NOT_BETWEEN, $attribute, [$start, $end]);
     }
 
-    public static function startsWith(string $attribute, string $value): self
+    public static function startsWith(string $attribute, string $value, bool $caseInsensitive = false): self
     {
-        return new self(self::TYPE_STARTS_WITH, $attribute, [$value]);
+        return new self(self::TYPE_STARTS_WITH, $attribute, [$value], $caseInsensitive);
     }
 
-    public static function notStartsWith(string $attribute, string $value): self
+    public static function notStartsWith(string $attribute, string $value, bool $caseInsensitive = false): self
     {
-        return new self(self::TYPE_NOT_STARTS_WITH, $attribute, [$value]);
+        return new self(self::TYPE_NOT_STARTS_WITH, $attribute, [$value], $caseInsensitive);
     }
 
-    public static function endsWith(string $attribute, string $value): self
+    public static function endsWith(string $attribute, string $value, bool $caseInsensitive = false): self
     {
-        return new self(self::TYPE_ENDS_WITH, $attribute, [$value]);
+        return new self(self::TYPE_ENDS_WITH, $attribute, [$value], $caseInsensitive);
     }
 
-    public static function notEndsWith(string $attribute, string $value): self
+    public static function notEndsWith(string $attribute, string $value, bool $caseInsensitive = false): self
     {
-        return new self(self::TYPE_NOT_ENDS_WITH, $attribute, [$value]);
+        return new self(self::TYPE_NOT_ENDS_WITH, $attribute, [$value], $caseInsensitive);
     }
 
     public static function isNull(string $attribute): self
@@ -420,8 +444,10 @@ class Condition
 
     private function matchesEqual(mixed $value): bool
     {
+        $value = $this->normalizeComparable($value);
+
         foreach ($this->values as $expected) {
-            if ($expected === $value) {
+            if ($this->normalizeComparable($expected) === $value) {
                 return true;
             }
         }
@@ -435,12 +461,17 @@ class Condition
     private function matchesContains(mixed $value, array $needles): bool
     {
         if (\is_array($value)) {
-            return \count(array_intersect($value, $needles)) > 0;
+            $haystack = array_map(fn (mixed $item): mixed => $this->normalizeComparable($item), $value);
+            $needles = array_map(fn (mixed $needle): mixed => $this->normalizeComparable($needle), $needles);
+
+            return \count(array_intersect($haystack, $needles)) > 0;
         }
 
         if (\is_string($value)) {
+            $value = $this->normalizeComparable($value);
+
             foreach ($needles as $needle) {
-                if (\is_string($needle) && $needle !== '' && str_contains($value, $needle)) {
+                if (\is_string($needle) && $needle !== '' && str_contains($value, $this->normalizeComparable($needle))) {
                     return true;
                 }
             }
@@ -481,7 +512,7 @@ class Condition
             return false;
         }
 
-        return str_starts_with($value, $prefix);
+        return str_starts_with($this->normalizeComparable($value), $this->normalizeComparable($prefix));
     }
 
     private function matchesSuffix(mixed $value): bool
@@ -492,7 +523,20 @@ class Condition
             return false;
         }
 
-        return str_ends_with($value, $suffix);
+        return str_ends_with($this->normalizeComparable($value), $this->normalizeComparable($suffix));
+    }
+
+    /**
+     * Lowercase string values when the condition is case-insensitive so that
+     * comparisons ignore letter casing. Non-string values are returned as-is.
+     */
+    private function normalizeComparable(mixed $value): mixed
+    {
+        if ($this->caseInsensitive && \is_string($value)) {
+            return \mb_strtolower($value);
+        }
+
+        return $value;
     }
 
     /**
