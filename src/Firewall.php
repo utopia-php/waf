@@ -42,6 +42,22 @@ class Firewall
         return $this->attributes[$name] ?? $default;
     }
 
+    /**
+     * Evaluate conditions against attributes populated through setAttribute().
+     *
+     * @param array<Condition> $conditions
+     */
+    public function matches(array $conditions): bool
+    {
+        foreach ($conditions as $condition) {
+            if (!$condition->matches($this->attributes)) {
+                return false;
+            }
+        }
+
+        return true;
+    }
+
     public function addRule(Rule $rule): self
     {
         $this->rules[] = $rule;

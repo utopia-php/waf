@@ -11,6 +11,26 @@ use Utopia\WAF\Rules\RateLimit;
 
 class FirewallTest extends TestCase
 {
+    public function testMatchesConditionsUsingPopulatedRequestAttributes(): void
+    {
+        $firewall = new Firewall();
+        $firewall->setAttributes([
+            'requestIP' => '127.0.0.1',
+            'requestPath' => '/v1/locale',
+            'requestCountry' => 'IL',
+        ]);
+
+        $this->assertTrue($firewall->matches([
+            Condition::equal('ip', ['127.0.0.1']),
+            Condition::contains('path', ['/v1']),
+            Condition::equal('country', ['il'], caseInsensitive: true),
+        ]));
+
+        $this->assertFalse($firewall->matches([
+            Condition::equal('country', ['US'], caseInsensitive: true),
+        ]));
+    }
+
     public function testRuleOrder(): void
     {
         $firewall = new Firewall();
