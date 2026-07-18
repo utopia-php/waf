@@ -42,22 +42,6 @@ class Firewall
         return $this->attributes[$name] ?? $default;
     }
 
-    /**
-     * Evaluate conditions against attributes populated through setAttribute().
-     *
-     * @param array<Condition> $conditions
-     */
-    public function matches(array $conditions): bool
-    {
-        foreach ($conditions as $condition) {
-            if (!$condition->matches($this->attributes)) {
-                return false;
-            }
-        }
-
-        return true;
-    }
-
     public function addRule(Rule $rule): self
     {
         $this->rules[] = $rule;
@@ -96,7 +80,12 @@ class Firewall
     }
 
     /**
-     * Evaluate the registered rules and return true when the request should be allowed.
+     * Evaluate registered rules in order against populated attributes.
+     *
+     * Sets the matched rule via getLastMatchedRule() when a rule's conditions
+     * match. Returns whether that rule's action allows the request to continue
+     * (bypass/rateLimit) or should be blocked (deny/challenge/redirect).
+     * Returns false when no rule matches.
      */
     public function verify(): bool
     {
