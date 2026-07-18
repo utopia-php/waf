@@ -23,11 +23,11 @@ class FirewallTest extends TestCase
         $this->assertTrue($firewall->matches([
             Condition::equal('ip', ['127.0.0.1']),
             Condition::contains('path', ['/v1']),
-            Condition::equal('country', ['il'], caseInsensitive: true),
+            Condition::equal('country', ['IL']),
         ]));
 
         $this->assertFalse($firewall->matches([
-            Condition::equal('country', ['US'], caseInsensitive: true),
+            Condition::equal('country', ['US']),
         ]));
     }
 
