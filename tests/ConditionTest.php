@@ -170,6 +170,29 @@ class ConditionTest extends TestCase
         $this->assertFalse($parsed->matches(['ip' => '127.0.0.1', 'path' => '/web']));
     }
 
+    public function testAttributeNormalization(): void
+    {
+        $fromAlias = Condition::fromArray([
+            'method' => 'equal',
+            'attribute' => 'requestPath',
+            'values' => ['/admin'],
+        ]);
+        $this->assertSame('path', $fromAlias->getAttribute());
+        $this->assertTrue($fromAlias->matches(['path' => '/admin']));
+
+        $fromCased = Condition::equal('Country', ['IL']);
+        $this->assertSame('country', $fromCased->getAttribute());
+        $this->assertTrue($fromCased->matches(['country' => 'IL']));
+
+        $fromRequestCountry = Condition::fromArray([
+            'method' => 'equal',
+            'attribute' => 'requestCountry',
+            'values' => ['US'],
+        ]);
+        $this->assertSame('country', $fromRequestCountry->getAttribute());
+        $this->assertSame('country', $fromRequestCountry->toArray()['attribute']);
+    }
+
     public function testCaseInsensitiveMatching(): void
     {
         $equal = Condition::equal('country', ['IL', 'US'], caseInsensitive: true);
