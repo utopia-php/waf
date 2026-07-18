@@ -94,7 +94,7 @@ class Condition
         }
 
         $this->method = $method;
-        $this->attribute = self::normalizeAttribute($attribute);
+        $this->attribute = $attribute;
         $this->values = $this->normalizeValues($values);
         $this->caseInsensitive = $caseInsensitive;
     }
@@ -139,25 +139,6 @@ class Condition
     public static function isMethod(string $value): bool
     {
         return \in_array($value, self::TYPES, true);
-    }
-
-    /**
-     * Canonicalize attribute names so conditions authored as `requestPath`,
-     * `RequestPath`, or `path` all resolve against the same Firewall attribute key.
-     *
-     * Mirrors Firewall::normalizeRequestKey() and its lowercase alias.
-     */
-    public static function normalizeAttribute(string $attribute): string
-    {
-        if ($attribute === '') {
-            return '';
-        }
-
-        if (stripos($attribute, 'request') === 0 && \strlen($attribute) > 7) {
-            $attribute = \lcfirst(\substr($attribute, 7));
-        }
-
-        return \strtolower($attribute);
     }
 
     /**
