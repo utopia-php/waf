@@ -92,4 +92,18 @@ class FirewallTest extends TestCase
         $this->assertSame(2, $matched->getLimit());
         $this->assertSame(60, $matched->getInterval());
     }
+
+    public function testRuleIdentifierRoundTrip(): void
+    {
+        $rule = (new Deny([
+            Condition::equal('ip', ['127.0.0.1']),
+        ]))->setId('rule_abc');
+
+        $firewall = new Firewall();
+        $firewall->setAttribute('requestIP', '127.0.0.1');
+        $firewall->addRule($rule);
+
+        $this->assertFalse($firewall->verify());
+        $this->assertSame('rule_abc', $firewall->getLastMatchedRule()?->getId());
+    }
 }
