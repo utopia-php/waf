@@ -11,6 +11,35 @@ use Utopia\WAF\Rules\RateLimit;
 
 class FirewallTest extends TestCase
 {
+    public function testVerifyUsesPopulatedRequestAttributesAndExposesMatchedRule(): void
+    {
+        $firewall = new Firewall();
+        $firewall->setAttributes([
+            'requestIP' => '127.0.0.1',
+            'requestPath' => '/v1/locale',
+            'requestCountry' => 'IL',
+        ]);
+
+        $deny = new Deny([
+            Condition::equal('ip', ['127.0.0.1']),
+            Condition::contains('path', ['/v1']),
+            Condition::equal('country', ['IL']),
+        ]);
+
+        $firewall->addRule($deny);
+
+        $this->assertFalse($firewall->verify());
+        $this->assertSame($deny, $firewall->getLastMatchedRule());
+
+        $firewall->clearRules();
+        $firewall->addRule(new Deny([
+            Condition::equal('country', ['US']),
+        ]));
+
+        $this->assertFalse($firewall->verify());
+        $this->assertNull($firewall->getLastMatchedRule());
+    }
+
     public function testRuleOrder(): void
     {
         $firewall = new Firewall();
@@ -62,5 +91,19 @@ class FirewallTest extends TestCase
 
         $this->assertSame(2, $matched->getLimit());
         $this->assertSame(60, $matched->getInterval());
+    }
+
+    public function testRuleIdentifierRoundTrip(): void
+    {
+        $rule = (new Deny([
+            Condition::equal('ip', ['127.0.0.1']),
+        ]))->setId('rule_abc');
+
+        $firewall = new Firewall();
+        $firewall->setAttribute('requestIP', '127.0.0.1');
+        $firewall->addRule($rule);
+
+        $this->assertFalse($firewall->verify());
+        $this->assertSame('rule_abc', $firewall->getLastMatchedRule()?->getId());
     }
 }

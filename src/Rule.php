@@ -15,6 +15,8 @@ abstract class Rule
      */
     protected array $conditions = [];
 
+    private ?string $id = null;
+
     /**
      * @param array<Condition|array<string, mixed>> $conditions
      */
@@ -33,6 +35,18 @@ abstract class Rule
     }
 
     abstract public function getAction(): string;
+
+    public function setId(string $id): self
+    {
+        $this->id = $id;
+
+        return $this;
+    }
+
+    public function getId(): ?string
+    {
+        return $this->id;
+    }
 
     /**
      * @return array<Condition>
