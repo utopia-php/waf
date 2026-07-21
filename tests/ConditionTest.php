@@ -206,6 +206,12 @@ class ConditionTest extends TestCase
         $numeric = Condition::equal('count', [10]);
         $this->assertTrue($numeric->matches(['count' => 10]));
         $this->assertFalse($numeric->matches(['count' => '10']));
+
+        // Ordering operators stay case-sensitive so string boundaries remain
+        // deterministic — only equality/substring matching folds case.
+        $between = Condition::between('name', 'BANANA', 'CHERRY');
+        $this->assertFalse($between->matches(['name' => 'banana']));
+        $this->assertTrue($between->matches(['name' => 'CANARY']));
     }
 
     public function testInvalidMethodThrowsException(): void

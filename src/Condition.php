@@ -562,7 +562,7 @@ class Condition
         }
 
         if (\is_string($left) && \is_string($right)) {
-            return \strtolower($left) <=> \strtolower($right);
+            return $left <=> $right;
         }
 
         if (\is_bool($left) && \is_bool($right)) {
