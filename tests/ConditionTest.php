@@ -190,6 +190,11 @@ class ConditionTest extends TestCase
         $arrayContains = Condition::contains('tags', ['Security']);
         $this->assertTrue($arrayContains->matches(['tags' => ['security', 'waf']]));
 
+        // Array membership keeps the old array_intersect() loose scalar
+        // semantics: an int needle still matches a numeric-string element.
+        $numericContains = Condition::contains('codes', [200]);
+        $this->assertTrue($numericContains->matches(['codes' => ['200', '404']]));
+
         // prefix / suffix fold case too.
         $startsWith = Condition::startsWith('path', '/API');
         $this->assertTrue($startsWith->matches(['path' => '/api/v1']));

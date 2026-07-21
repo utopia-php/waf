@@ -443,17 +443,12 @@ class Condition
     private function matchesContains(mixed $value, array $needles): bool
     {
         if (\is_array($value)) {
+            // Mirror the old array_intersect() semantics (scalars compared as
+            // strings, so 200 matches '200') while folding case.
             foreach ($value as $item) {
                 foreach ($needles as $needle) {
-                    if (\is_string($item) && \is_string($needle)) {
-                        if (\strtolower($item) === \strtolower($needle)) {
-                            return true;
-                        }
-
-                        continue;
-                    }
-
-                    if ($item === $needle) {
+                    if (\is_scalar($item) && \is_scalar($needle)
+                        && \strtolower((string) $item) === \strtolower((string) $needle)) {
                         return true;
                     }
                 }
