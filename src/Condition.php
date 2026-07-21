@@ -421,6 +421,14 @@ class Condition
     private function matchesEqual(mixed $value): bool
     {
         foreach ($this->values as $expected) {
+            if (\is_string($expected) && \is_string($value)) {
+                if (\strtolower($expected) === \strtolower($value)) {
+                    return true;
+                }
+
+                continue;
+            }
+
             if ($expected === $value) {
                 return true;
             }
@@ -435,12 +443,29 @@ class Condition
     private function matchesContains(mixed $value, array $needles): bool
     {
         if (\is_array($value)) {
-            return \count(array_intersect($value, $needles)) > 0;
+            foreach ($value as $item) {
+                foreach ($needles as $needle) {
+                    if (\is_string($item) && \is_string($needle)) {
+                        if (\strtolower($item) === \strtolower($needle)) {
+                            return true;
+                        }
+
+                        continue;
+                    }
+
+                    if ($item === $needle) {
+                        return true;
+                    }
+                }
+            }
+
+            return false;
         }
 
         if (\is_string($value)) {
+            $haystack = \strtolower($value);
             foreach ($needles as $needle) {
-                if (\is_string($needle) && $needle !== '' && str_contains($value, $needle)) {
+                if (\is_string($needle) && $needle !== '' && str_contains($haystack, \strtolower($needle))) {
                     return true;
                 }
             }
@@ -481,7 +506,7 @@ class Condition
             return false;
         }
 
-        return str_starts_with($value, $prefix);
+        return str_starts_with(\strtolower($value), \strtolower($prefix));
     }
 
     private function matchesSuffix(mixed $value): bool
@@ -492,7 +517,7 @@ class Condition
             return false;
         }
 
-        return str_ends_with($value, $suffix);
+        return str_ends_with(\strtolower($value), \strtolower($suffix));
     }
 
     /**
@@ -542,7 +567,7 @@ class Condition
         }
 
         if (\is_string($left) && \is_string($right)) {
-            return $left <=> $right;
+            return \strtolower($left) <=> \strtolower($right);
         }
 
         if (\is_bool($left) && \is_bool($right)) {

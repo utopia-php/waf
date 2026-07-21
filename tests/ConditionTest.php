@@ -170,6 +170,39 @@ class ConditionTest extends TestCase
         $this->assertFalse($parsed->matches(['ip' => '127.0.0.1', 'path' => '/web']));
     }
 
+    public function testMatchingIsCaseInsensitive(): void
+    {
+        // equal: rule value and resolved attribute differ only in case.
+        $country = Condition::equal('country', ['in']);
+        $this->assertTrue($country->matches(['country' => 'IN']));
+        $this->assertTrue($country->matches(['country' => 'In']));
+        $this->assertFalse($country->matches(['country' => 'US']));
+
+        // notEqual inherits the same folding.
+        $notCountry = Condition::notEqual('country', 'in');
+        $this->assertFalse($notCountry->matches(['country' => 'IN']));
+        $this->assertTrue($notCountry->matches(['country' => 'US']));
+
+        // contains: both the string-haystack and array-membership forms fold case.
+        $stringContains = Condition::contains('userAgent', ['CURL']);
+        $this->assertTrue($stringContains->matches(['userAgent' => 'curl/8.4']));
+
+        $arrayContains = Condition::contains('tags', ['Security']);
+        $this->assertTrue($arrayContains->matches(['tags' => ['security', 'waf']]));
+
+        // prefix / suffix fold case too.
+        $startsWith = Condition::startsWith('path', '/API');
+        $this->assertTrue($startsWith->matches(['path' => '/api/v1']));
+
+        $endsWith = Condition::endsWith('path', '.JSON');
+        $this->assertTrue($endsWith->matches(['path' => '/status.json']));
+
+        // Non-string values keep strict semantics (no accidental coercion).
+        $numeric = Condition::equal('count', [10]);
+        $this->assertTrue($numeric->matches(['count' => 10]));
+        $this->assertFalse($numeric->matches(['count' => '10']));
+    }
+
     public function testInvalidMethodThrowsException(): void
     {
         $this->expectException(ConditionException::class);
