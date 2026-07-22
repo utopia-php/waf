@@ -30,6 +30,10 @@ class Condition
     public const TYPE_ENDS_WITH = 'endsWith';
     public const TYPE_NOT_ENDS_WITH = 'notEndsWith';
 
+    // Network helpers.
+    public const TYPE_IN_CIDR = 'inCidr';
+    public const TYPE_NOT_IN_CIDR = 'notInCidr';
+
     // Null helpers.
     public const TYPE_IS_NULL = 'isNull';
     public const TYPE_IS_NOT_NULL = 'isNotNull';
@@ -61,6 +65,8 @@ class Condition
         self::TYPE_NOT_STARTS_WITH,
         self::TYPE_ENDS_WITH,
         self::TYPE_NOT_ENDS_WITH,
+        self::TYPE_IN_CIDR,
+        self::TYPE_NOT_IN_CIDR,
         self::TYPE_IS_NULL,
         self::TYPE_IS_NOT_NULL,
         self::TYPE_AND,
@@ -311,6 +317,22 @@ class Condition
         return new self(self::TYPE_NOT_ENDS_WITH, $attribute, [$value]);
     }
 
+    /**
+     * @param array<string> $values
+     */
+    public static function inCidr(string $attribute, array $values): self
+    {
+        return new self(self::TYPE_IN_CIDR, $attribute, $values);
+    }
+
+    /**
+     * @param array<string> $values
+     */
+    public static function notInCidr(string $attribute, array $values): self
+    {
+        return new self(self::TYPE_NOT_IN_CIDR, $attribute, $values);
+    }
+
     public static function isNull(string $attribute): self
     {
         return new self(self::TYPE_IS_NULL, $attribute);
@@ -365,6 +387,8 @@ class Condition
             self::TYPE_NOT_STARTS_WITH => !$this->matchesPrefix($value),
             self::TYPE_ENDS_WITH => $this->matchesSuffix($value),
             self::TYPE_NOT_ENDS_WITH => !$this->matchesSuffix($value),
+            self::TYPE_IN_CIDR => $this->matchesInCidr($value),
+            self::TYPE_NOT_IN_CIDR => $this->matchesNotInCidr($value),
             self::TYPE_IS_NULL => $value === null,
             self::TYPE_IS_NOT_NULL => $value !== null,
             default => false,
@@ -467,6 +491,136 @@ class Condition
         }
 
         return false;
+    }
+
+    /**
+     * True when the given string is a valid CIDR block or bare IP address.
+     * A bare address is treated as a full-length host route (`/32` for IPv4,
+     * `/128` for IPv6).
+     */
+    public static function isCidr(string $value): bool
+    {
+        return self::parseCidr($value) !== null;
+    }
+
+    private function matchesInCidr(mixed $value): bool
+    {
+        $candidate = self::packAddress($value);
+
+        if ($candidate === null) {
+            return false;
+        }
+
+        foreach ($this->values as $cidr) {
+            if (\is_string($cidr) && self::cidrContains($cidr, $candidate)) {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    private function matchesNotInCidr(mixed $value): bool
+    {
+        $candidate = self::packAddress($value);
+
+        if ($candidate === null) {
+            return false;
+        }
+
+        foreach ($this->values as $cidr) {
+            if (\is_string($cidr) && self::cidrContains($cidr, $candidate)) {
+                return false;
+            }
+        }
+
+        return true;
+    }
+
+    private static function packAddress(mixed $value): ?string
+    {
+        if (!\is_string($value)) {
+            return null;
+        }
+
+        $packed = @\inet_pton($value);
+
+        return $packed === false ? null : $packed;
+    }
+
+    /**
+     * Parse a CIDR block into its packed network address and prefix length.
+     *
+     * @return array{string, int}|null
+     */
+    private static function parseCidr(string $cidr): ?array
+    {
+        if (\str_contains($cidr, '/')) {
+            [$network, $prefixText] = \explode('/', $cidr, 2);
+
+            if (!\ctype_digit($prefixText)) {
+                return null;
+            }
+
+            $prefix = (int) $prefixText;
+        } else {
+            $network = $cidr;
+            $prefix = null;
+        }
+
+        $networkPacked = self::packAddress($network);
+
+        if ($networkPacked === null) {
+            return null;
+        }
+
+        $bits = \strlen($networkPacked) * 8;
+        $prefix ??= $bits;
+
+        if ($prefix > $bits) {
+            return null;
+        }
+
+        return [$networkPacked, $prefix];
+    }
+
+    /**
+     * Bytewise prefix comparison of a packed candidate address against a CIDR
+     * block. Addresses of different families (4 vs 16 bytes) never match.
+     */
+    private static function cidrContains(string $cidr, string $candidate): bool
+    {
+        $parsed = self::parseCidr($cidr);
+
+        if ($parsed === null) {
+            return false;
+        }
+
+        [$network, $prefix] = $parsed;
+
+        if (\strlen($network) !== \strlen($candidate)) {
+            return false;
+        }
+
+        if ($prefix === 0) {
+            return true;
+        }
+
+        $fullBytes = \intdiv($prefix, 8);
+
+        if ($fullBytes > 0 && \substr($candidate, 0, $fullBytes) !== \substr($network, 0, $fullBytes)) {
+            return false;
+        }
+
+        $remainingBits = $prefix % 8;
+
+        if ($remainingBits === 0) {
+            return true;
+        }
+
+        $mask = 0xFF << (8 - $remainingBits) & 0xFF;
+
+        return (\ord($candidate[$fullBytes]) & $mask) === (\ord($network[$fullBytes]) & $mask);
     }
 
     private function matchesRange(mixed $value, bool $inclusive): bool

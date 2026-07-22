@@ -40,6 +40,26 @@ class FirewallTest extends TestCase
         $this->assertNull($firewall->getLastMatchedRule());
     }
 
+    public function testVerifyDeniesRequestsInsideCidrBlock(): void
+    {
+        $firewall = new Firewall();
+        $firewall->setAttribute('requestIP', '203.0.113.5');
+
+        $deny = new Deny([
+            Condition::inCidr('ip', ['203.0.113.0/24', '2001:db8::/32']),
+        ]);
+
+        $firewall->addRule($deny);
+
+        $this->assertFalse($firewall->verify());
+        $this->assertSame($deny, $firewall->getLastMatchedRule());
+
+        $firewall->setAttribute('requestIP', '198.51.100.5');
+
+        $this->assertFalse($firewall->verify(), 'No rule should match an address outside the block');
+        $this->assertNull($firewall->getLastMatchedRule());
+    }
+
     public function testRuleOrder(): void
     {
         $firewall = new Firewall();

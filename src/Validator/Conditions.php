@@ -95,6 +95,18 @@ class Conditions extends Validator
             }
         }
 
+        if (\in_array($method, [Condition::TYPE_IN_CIDR, Condition::TYPE_NOT_IN_CIDR], true)) {
+            if (!\is_array($values) || \count($values) === 0) {
+                return false;
+            }
+
+            foreach ($values as $value) {
+                if (!\is_string($value) || !Condition::isCidr($value)) {
+                    return false;
+                }
+            }
+        }
+
         try {
             Condition::fromArray($payload);
         } catch (\Throwable) {

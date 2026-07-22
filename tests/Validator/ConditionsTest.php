@@ -130,6 +130,50 @@ class ConditionsTest extends TestCase
         ]));
     }
 
+    public function testAcceptsCidrConditions(): void
+    {
+        $validator = new Conditions();
+
+        $this->assertTrue($validator->isValid([
+            Condition::inCidr('ip', ['10.0.0.0/8', '203.0.113.5', '2001:db8::/32', '2001:db8::1'])->toArray(),
+            Condition::notInCidr('ip', ['0.0.0.0/0'])->toArray(),
+        ]));
+    }
+
+    public function testRejectsEmptyCidrConditions(): void
+    {
+        $validator = new Conditions();
+
+        $this->assertFalse($validator->isValid([
+            Condition::inCidr('ip', [])->toArray(),
+        ]));
+    }
+
+    public function testRejectsMalformedCidrValues(): void
+    {
+        $validator = new Conditions();
+
+        $this->assertFalse($validator->isValid([
+            Condition::inCidr('ip', ['garbage'])->toArray(),
+        ]));
+
+        $this->assertFalse($validator->isValid([
+            Condition::inCidr('ip', ['203.0.113.0/999'])->toArray(),
+        ]));
+
+        $this->assertFalse($validator->isValid([
+            Condition::notInCidr('ip', ['203.0.113.0/24', 'garbage'])->toArray(),
+        ]));
+
+        $this->assertFalse($validator->isValid([
+            [
+                'method' => Condition::TYPE_NOT_IN_CIDR,
+                'attribute' => 'ip',
+                'values' => [42],
+            ],
+        ]));
+    }
+
     public function testRejectsEmptyLogicalConditions(): void
     {
         $validator = new Conditions();

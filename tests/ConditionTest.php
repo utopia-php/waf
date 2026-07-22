@@ -98,6 +98,125 @@ class ConditionTest extends TestCase
         $this->assertFalse($notEndsWith->matches(['path' => '/index.php']));
     }
 
+    public function testInCidrIpv4Membership(): void
+    {
+        $inCidr = Condition::inCidr('ip', ['203.0.113.0/24']);
+
+        $this->assertTrue($inCidr->matches(['ip' => '203.0.113.5']));
+        $this->assertFalse($inCidr->matches(['ip' => '203.0.114.5']));
+    }
+
+    public function testInCidrIpv6Membership(): void
+    {
+        $inCidr = Condition::inCidr('ip', ['2001:db8::/32']);
+
+        $this->assertTrue($inCidr->matches(['ip' => '2001:db8::1']));
+        $this->assertFalse($inCidr->matches(['ip' => '2001:db9::1']));
+    }
+
+    public function testInCidrMatchesAnyBlockInList(): void
+    {
+        $inCidr = Condition::inCidr('ip', ['10.0.0.0/8', '203.0.113.0/24']);
+
+        $this->assertTrue($inCidr->matches(['ip' => '10.5.5.5']));
+        $this->assertTrue($inCidr->matches(['ip' => '203.0.113.200']));
+        $this->assertFalse($inCidr->matches(['ip' => '192.168.1.1']));
+    }
+
+    public function testInCidrBareAddressIsHostRoute(): void
+    {
+        $ipv4 = Condition::inCidr('ip', ['203.0.113.5']);
+        $ipv6 = Condition::inCidr('ip', ['2001:db8::1']);
+
+        $this->assertTrue($ipv4->matches(['ip' => '203.0.113.5']));
+        $this->assertFalse($ipv4->matches(['ip' => '203.0.113.6']));
+
+        $this->assertTrue($ipv6->matches(['ip' => '2001:db8::1']));
+        $this->assertFalse($ipv6->matches(['ip' => '2001:db8::2']));
+    }
+
+    public function testInCidrPrefixBoundaries(): void
+    {
+        $zero = Condition::inCidr('ip', ['0.0.0.0/0']);
+        $zeroV6 = Condition::inCidr('ip', ['::/0']);
+        $nonByteAligned = Condition::inCidr('ip', ['192.168.1.64/26']);
+
+        $this->assertTrue($zero->matches(['ip' => '8.8.8.8']));
+        $this->assertTrue($zeroV6->matches(['ip' => '2001:db8::1']));
+
+        $this->assertTrue($nonByteAligned->matches(['ip' => '192.168.1.100']));
+        $this->assertFalse($nonByteAligned->matches(['ip' => '192.168.1.200']));
+    }
+
+    public function testInCidrNeverMatchesAcrossAddressFamilies(): void
+    {
+        $ipv6Block = Condition::inCidr('ip', ['2001:db8::/32']);
+        $ipv4Block = Condition::inCidr('ip', ['203.0.113.0/24']);
+
+        $this->assertFalse($ipv6Block->matches(['ip' => '203.0.113.5']));
+        $this->assertFalse($ipv4Block->matches(['ip' => '2001:db8::1']));
+
+        // /0 in one family still never matches the other.
+        $this->assertFalse(Condition::inCidr('ip', ['0.0.0.0/0'])->matches(['ip' => '2001:db8::1']));
+        $this->assertFalse(Condition::inCidr('ip', ['::/0'])->matches(['ip' => '8.8.8.8']));
+    }
+
+    public function testMalformedCidrEntriesNeverContainAnAddress(): void
+    {
+        $this->assertFalse(Condition::inCidr('ip', ['garbage'])->matches(['ip' => '203.0.113.5']));
+        $this->assertFalse(Condition::inCidr('ip', ['203.0.113.0/999'])->matches(['ip' => '203.0.113.5']));
+        $this->assertFalse(Condition::inCidr('ip', ['203.0.113.0/-1'])->matches(['ip' => '203.0.113.5']));
+        $this->assertFalse(Condition::inCidr('ip', [])->matches(['ip' => '203.0.113.5']));
+
+        // A malformed entry is skipped without poisoning valid siblings.
+        $mixed = Condition::inCidr('ip', ['garbage', '203.0.113.0/24']);
+        $this->assertTrue($mixed->matches(['ip' => '203.0.113.5']));
+
+        // notInCidr skips malformed entries the same way: they cannot prove
+        // membership, so a valid address outside every valid block matches.
+        $this->assertTrue(Condition::notInCidr('ip', ['garbage'])->matches(['ip' => '203.0.113.5']));
+    }
+
+    public function testMalformedAttributeAddressFailsClosedForBothCidrOperators(): void
+    {
+        $inCidr = Condition::inCidr('ip', ['203.0.113.0/24']);
+        $notInCidr = Condition::notInCidr('ip', ['203.0.113.0/24']);
+
+        // An unparseable address is not provably inside nor provably outside,
+        // so neither operator matches.
+        foreach (['not-an-ip', '', null, ['203.0.113.5'], 42] as $malformed) {
+            $this->assertFalse($inCidr->matches(['ip' => $malformed]));
+            $this->assertFalse($notInCidr->matches(['ip' => $malformed]));
+        }
+
+        $this->assertFalse($inCidr->matches([]));
+        $this->assertFalse($notInCidr->matches([]));
+    }
+
+    public function testNotInCidrInvertsMembership(): void
+    {
+        $notInCidr = Condition::notInCidr('ip', ['10.0.0.0/8', '2001:db8::/32']);
+
+        $this->assertFalse($notInCidr->matches(['ip' => '10.5.5.5']));
+        $this->assertFalse($notInCidr->matches(['ip' => '2001:db8::1']));
+        $this->assertTrue($notInCidr->matches(['ip' => '192.168.1.1']));
+        $this->assertTrue($notInCidr->matches(['ip' => '2001:db9::1']));
+    }
+
+    public function testCidrConditionSerializationRoundTrip(): void
+    {
+        $condition = Condition::or([
+            Condition::inCidr('ip', ['203.0.113.0/24']),
+            Condition::notInCidr('ip', ['0.0.0.0/0']),
+        ]);
+
+        $parsed = Condition::decode($condition->encode());
+
+        $this->assertTrue($parsed->matches(['ip' => '203.0.113.5']));
+        $this->assertTrue($parsed->matches(['ip' => '2001:db8::1']));
+        $this->assertFalse($parsed->matches(['ip' => '192.168.1.1']));
+    }
+
     public function testNullOperatorsAndAttributeResolution(): void
     {
         $isNull = Condition::isNull('payload.signature');

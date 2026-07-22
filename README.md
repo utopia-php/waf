@@ -80,7 +80,7 @@ $json = $condition->encode();
 $parsed = Condition::decode($json);
 ```
 
-Available operators mirror the database query builder: `equal`, `notEqual`, `lessThan`, `greaterThan`, `contains`, `between`, `startsWith`, `endsWith`, `isNull`, `and`, `or`, and more.
+Available operators mirror the database query builder: `equal`, `notEqual`, `lessThan`, `greaterThan`, `contains`, `between`, `startsWith`, `endsWith`, `inCidr`, `notInCidr`, `isNull`, `and`, `or`, and more.
 
 ### Rate Limiting
 
