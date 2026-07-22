@@ -169,12 +169,20 @@ class ConditionTest extends TestCase
         $this->assertFalse(Condition::inCidr('ip', [])->matches(['ip' => '203.0.113.5']));
 
         // A malformed entry is skipped without poisoning valid siblings.
-        $mixed = Condition::inCidr('ip', ['garbage', '203.0.113.0/24']);
-        $this->assertTrue($mixed->matches(['ip' => '203.0.113.5']));
+        $this->assertTrue(Condition::inCidr('ip', ['garbage', '203.0.113.0/24'])->matches(['ip' => '203.0.113.5']));
+        $this->assertFalse(Condition::notInCidr('ip', ['garbage', '203.0.113.0/24'])->matches(['ip' => '203.0.113.5']));
+        $this->assertTrue(Condition::notInCidr('ip', ['garbage', '203.0.113.0/24'])->matches(['ip' => '198.51.100.5']));
+    }
 
-        // notInCidr skips malformed entries the same way: they cannot prove
-        // membership, so a valid address outside every valid block matches.
-        $this->assertTrue(Condition::notInCidr('ip', ['garbage'])->matches(['ip' => '203.0.113.5']));
+    public function testCidrOperatorsWithoutUsableEntriesMatchNothing(): void
+    {
+        $address = ['ip' => '203.0.113.5'];
+
+        $this->assertFalse(Condition::inCidr('ip', [])->matches($address));
+        $this->assertFalse(Condition::notInCidr('ip', [])->matches($address));
+
+        $this->assertFalse(Condition::inCidr('ip', ['garbage', '203.0.113.0/999'])->matches($address));
+        $this->assertFalse(Condition::notInCidr('ip', ['garbage', '203.0.113.0/999'])->matches($address));
     }
 
     public function testMalformedAttributeAddressFailsClosedForBothCidrOperators(): void

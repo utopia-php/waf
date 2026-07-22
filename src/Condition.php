@@ -511,8 +511,8 @@ class Condition
             return false;
         }
 
-        foreach ($this->values as $cidr) {
-            if (\is_string($cidr) && self::cidrContains($cidr, $candidate)) {
+        foreach ($this->parsedCidrValues() as $parsed) {
+            if (self::cidrContains($parsed, $candidate)) {
                 return true;
             }
         }
@@ -520,6 +520,10 @@ class Condition
         return false;
     }
 
+    /**
+     * A list without a single usable CIDR entry matches nothing, so an empty
+     * or fully malformed notInCidr never degrades into match-everything.
+     */
     private function matchesNotInCidr(mixed $value): bool
     {
         $candidate = self::packAddress($value);
@@ -528,13 +532,41 @@ class Condition
             return false;
         }
 
-        foreach ($this->values as $cidr) {
-            if (\is_string($cidr) && self::cidrContains($cidr, $candidate)) {
+        $blocks = $this->parsedCidrValues();
+
+        if ($blocks === []) {
+            return false;
+        }
+
+        foreach ($blocks as $parsed) {
+            if (self::cidrContains($parsed, $candidate)) {
                 return false;
             }
         }
 
         return true;
+    }
+
+    /**
+     * @return array<array{string, int}>
+     */
+    private function parsedCidrValues(): array
+    {
+        $parsed = [];
+
+        foreach ($this->values as $cidr) {
+            if (!\is_string($cidr)) {
+                continue;
+            }
+
+            $block = self::parseCidr($cidr);
+
+            if ($block !== null) {
+                $parsed[] = $block;
+            }
+        }
+
+        return $parsed;
     }
 
     private static function packAddress(mixed $value): ?string
@@ -585,17 +617,14 @@ class Condition
     }
 
     /**
-     * Bytewise prefix comparison of a packed candidate address against a CIDR
-     * block. Addresses of different families (4 vs 16 bytes) never match.
+     * Bytewise prefix comparison of a packed candidate address against a
+     * parsed CIDR block. Addresses of different families (4 vs 16 bytes)
+     * never match.
+     *
+     * @param array{string, int} $parsed
      */
-    private static function cidrContains(string $cidr, string $candidate): bool
+    private static function cidrContains(array $parsed, string $candidate): bool
     {
-        $parsed = self::parseCidr($cidr);
-
-        if ($parsed === null) {
-            return false;
-        }
-
         [$network, $prefix] = $parsed;
 
         if (\strlen($network) !== \strlen($candidate)) {
