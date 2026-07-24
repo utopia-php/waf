@@ -36,10 +36,19 @@ class RulesTest extends TestCase
     {
         $defaultRule = new Challenge();
         $customRule = new Challenge([], Challenge::TYPE_CUSTOM);
+        $computeRule = new Challenge([], Challenge::TYPE_COMPUTE);
 
         $this->assertSame('challenge', $defaultRule->getAction());
         $this->assertSame(Challenge::TYPE_CAPTCHA, $defaultRule->getType());
         $this->assertSame(Challenge::TYPE_CUSTOM, $customRule->getType());
+        $this->assertSame(Challenge::TYPE_COMPUTE, $computeRule->getType());
+        $this->assertSame(Challenge::TYPE_CUSTOM, $computeRule->getType());
+    }
+
+    public function testChallengeRuleRejectsUnknownType(): void
+    {
+        $this->expectException(\InvalidArgumentException::class);
+        new Challenge([], 'not-a-real-type');
     }
 
     public function testRateLimitMetadata(): void
