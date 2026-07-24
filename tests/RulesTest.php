@@ -42,7 +42,6 @@ class RulesTest extends TestCase
         $this->assertSame(Challenge::TYPE_CAPTCHA, $defaultRule->getType());
         $this->assertSame(Challenge::TYPE_CUSTOM, $customRule->getType());
         $this->assertSame(Challenge::TYPE_COMPUTE, $computeRule->getType());
-        $this->assertSame(Challenge::TYPE_CUSTOM, $computeRule->getType());
     }
 
     public function testChallengeRuleRejectsUnknownType(): void
