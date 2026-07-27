@@ -199,4 +199,60 @@ class ConditionsTest extends TestCase
             Condition::equal('ip', ['not-an-ip'])->toArray(),
         ]));
     }
+
+    public function testAllowedAttributesValidation(): void
+    {
+        $validator = new Conditions(allowedAttributes: ['ip', 'method', 'headers.', 'query.']);
+
+        // Exact names and prefixed map lookups pass.
+        $this->assertTrue($validator->isValid([
+            Condition::equal('ip', ['203.0.113.10'])->toArray(),
+            Condition::equal('method', ['POST'])->toArray(),
+            Condition::contains('headers.x-canary', ['1'])->toArray(),
+            Condition::equal('query.debug', ['true'])->toArray(),
+        ]));
+
+        // Aliases normalize to the same canonical names.
+        $this->assertTrue($validator->isValid([
+            Condition::equal('requestIp', ['203.0.113.10'])->toArray(),
+            Condition::equal('METHOD', ['POST'])->toArray(),
+        ]));
+
+        // Unknown attributes are rejected.
+        $this->assertFalse($validator->isValid([
+            Condition::equal('userId', ['abc'])->toArray(),
+        ]));
+
+        // A bare prefix without a key is not a valid attribute.
+        $this->assertFalse($validator->isValid([
+            Condition::equal('headers.', ['x'])->toArray(),
+        ]));
+
+        // Nested logical conditions are checked recursively.
+        $this->assertFalse($validator->isValid([
+            [
+                'method' => Condition::TYPE_OR,
+                'values' => [
+                    Condition::equal('ip', ['203.0.113.10'])->toArray(),
+                    Condition::equal('bogus', ['x'])->toArray(),
+                ],
+            ],
+        ]));
+
+        // Missing attribute on a leaf condition is rejected when restricted.
+        $this->assertFalse($validator->isValid([
+            ['method' => Condition::TYPE_EQUAL, 'values' => ['x']],
+        ]));
+
+        // Empty allowlist keeps previous behavior: anything goes.
+        $this->assertTrue((new Conditions())->isValid([
+            Condition::equal('anything-at-all', ['x'])->toArray(),
+        ]));
+
+        // Allowlist registration itself accepts alias spellings.
+        $aliased = new Conditions(allowedAttributes: ['requestIp']);
+        $this->assertTrue($aliased->isValid([
+            Condition::equal('ip', ['203.0.113.10'])->toArray(),
+        ]));
+    }
 }
