@@ -5,6 +5,7 @@ namespace Utopia\WAF\Tests;
 use PHPUnit\Framework\TestCase;
 use Utopia\WAF\Condition;
 use Utopia\WAF\Exception\Condition as ConditionException;
+use Utopia\WAF\Types\IpType;
 
 class ConditionTest extends TestCase
 {
@@ -230,5 +231,39 @@ class ConditionTest extends TestCase
         $this->expectException(ConditionException::class);
 
         Condition::decode('{"method":');
+    }
+
+    public function testEqualWithAttributeTypeMatchesCidrBlocks(): void
+    {
+        $types = ['ip' => new IpType()];
+
+        $equal = Condition::equal('ip', ['203.0.113.10', '10.0.0.0/8']);
+        $this->assertTrue($equal->matches(['ip' => '203.0.113.10'], $types)); // plain IP, default equality
+        $this->assertTrue($equal->matches(['ip' => '10.4.20.9'], $types));    // CIDR containment
+        $this->assertFalse($equal->matches(['ip' => '11.0.0.1'], $types));
+
+        // notEqual inherits the typed semantics through negation.
+        $notEqual = Condition::notEqual('ip', '10.0.0.0/8');
+        $this->assertFalse($notEqual->matches(['ip' => '10.4.20.9'], $types));
+        $this->assertTrue($notEqual->matches(['ip' => '11.0.0.1'], $types));
+
+        // Nested logical conditions carry the types down.
+        $nested = Condition::or([
+            Condition::equal('ip', ['10.0.0.0/8']),
+            Condition::equal('country', ['US']),
+        ]);
+        $this->assertTrue($nested->matches(['ip' => '10.1.1.1', 'country' => 'IN'], $types));
+        $this->assertFalse($nested->matches(['ip' => '11.1.1.1', 'country' => 'IN'], $types));
+    }
+
+    public function testEqualWithoutTypesKeepsPlainStringSemantics(): void
+    {
+        // Without a registered type a CIDR value never matches, and
+        // slash-containing values on other attributes stay untouched.
+        $equal = Condition::equal('ip', ['10.0.0.0/8']);
+        $this->assertFalse($equal->matches(['ip' => '10.4.20.9']));
+
+        $path = Condition::equal('path', ['/v1/health']);
+        $this->assertTrue($path->matches(['path' => '/v1/health'], ['ip' => new IpType()]));
     }
 }

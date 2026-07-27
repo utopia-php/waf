@@ -2,6 +2,9 @@
 
 namespace Utopia\WAF;
 
+use Utopia\WAF\Types\AttributeType;
+use Utopia\WAF\Types\IpType;
+
 class Firewall
 {
     /**
@@ -14,7 +17,52 @@ class Firewall
      */
     private array $rules = [];
 
+    /**
+     * Typed matching semantics, keyed by normalized attribute name.
+     *
+     * @var array<string, AttributeType>
+     */
+    private array $attributeTypes;
+
     private ?Rule $lastMatchedRule = null;
+
+    public function __construct()
+    {
+        $this->attributeTypes = [
+            'ip' => new IpType(),
+        ];
+    }
+
+    public function setAttributeType(string $attribute, AttributeType $type): self
+    {
+        $this->attributeTypes[self::normalizeAttributeName($attribute)] = $type;
+
+        return $this;
+    }
+
+    /**
+     * @return array<string, AttributeType>
+     */
+    public function getAttributeTypes(): array
+    {
+        return $this->attributeTypes;
+    }
+
+    /**
+     * Normalize an attribute name for type lookup, mirroring the aliasing
+     * applied by setAttribute() ("requestIp" and "IP" both resolve to "ip").
+     */
+    public static function normalizeAttributeName(string $name): string
+    {
+        if (stripos($name, 'request') === 0) {
+            $withoutPrefix = substr($name, 7);
+            if ($withoutPrefix !== false && $withoutPrefix !== '') {
+                $name = $withoutPrefix;
+            }
+        }
+
+        return strtolower($name);
+    }
 
     public function setAttribute(string $name, mixed $value): self
     {
@@ -92,7 +140,7 @@ class Firewall
         $this->lastMatchedRule = null;
 
         foreach ($this->rules as $rule) {
-            if (!$rule->matches($this->attributes)) {
+            if (!$rule->matches($this->attributes, $this->attributeTypes)) {
                 continue;
             }
 

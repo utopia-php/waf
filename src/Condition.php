@@ -341,18 +341,20 @@ class Condition
      * Evaluate the condition against resolved attributes.
      *
      * @param array<string, mixed> $attributes
+     * @param array<string, \Utopia\WAF\Types\AttributeType> $types typed matching semantics, keyed by normalized attribute name
      */
-    public function matches(array $attributes): bool
+    public function matches(array $attributes, array $types = []): bool
     {
         if ($this->isLogical()) {
-            return $this->matchesLogical($attributes);
+            return $this->matchesLogical($attributes, $types);
         }
 
         $value = $this->resolveValue($attributes);
+        $type = $types === [] ? null : ($types[Firewall::normalizeAttributeName($this->attribute)] ?? null);
 
         return match ($this->method) {
-            self::TYPE_EQUAL => $this->matchesEqual($value),
-            self::TYPE_NOT_EQUAL => !$this->matchesEqual($value),
+            self::TYPE_EQUAL => $this->matchesEqual($value, $type),
+            self::TYPE_NOT_EQUAL => !$this->matchesEqual($value, $type),
             self::TYPE_LESS_THAN => $this->matchesRelational($value, $this->values[0] ?? null, static fn (int $result): bool => $result < 0),
             self::TYPE_LESS_THAN_EQUAL => $this->matchesRelational($value, $this->values[0] ?? null, static fn (int $result): bool => $result <= 0),
             self::TYPE_GREATER_THAN => $this->matchesRelational($value, $this->values[0] ?? null, static fn (int $result): bool => $result > 0),
@@ -396,12 +398,13 @@ class Condition
 
     /**
      * @param array<string, mixed> $attributes
+     * @param array<string, \Utopia\WAF\Types\AttributeType> $types
      */
-    private function matchesLogical(array $attributes): bool
+    private function matchesLogical(array $attributes, array $types): bool
     {
         if ($this->method === self::TYPE_AND) {
             foreach ($this->values as $condition) {
-                if (!$condition->matches($attributes)) {
+                if (!$condition->matches($attributes, $types)) {
                     return false;
                 }
             }
@@ -410,7 +413,7 @@ class Condition
         }
 
         foreach ($this->values as $condition) {
-            if ($condition->matches($attributes)) {
+            if ($condition->matches($attributes, $types)) {
                 return true;
             }
         }
@@ -418,9 +421,20 @@ class Condition
         return false;
     }
 
-    private function matchesEqual(mixed $value): bool
+    private function matchesEqual(mixed $value, ?Types\AttributeType $type = null): bool
     {
         foreach ($this->values as $expected) {
+            // Always probe with equality semantics: notEqual is the negation
+            // of this method's result, applied by the caller.
+            $handled = $type?->compare(self::TYPE_EQUAL, $value, $expected);
+            if ($handled === true) {
+                return true;
+            }
+
+            if ($handled === false) {
+                continue;
+            }
+
             if (\is_string($expected) && \is_string($value)) {
                 if (\strtolower($expected) === \strtolower($value)) {
                     return true;

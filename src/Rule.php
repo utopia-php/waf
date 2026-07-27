@@ -67,11 +67,12 @@ abstract class Rule
      * Evaluate rule conditions against provided attributes.
      *
      * @param array<string, mixed> $attributes
+     * @param array<string, \Utopia\WAF\Types\AttributeType> $types
      */
-    public function matches(array $attributes): bool
+    public function matches(array $attributes, array $types = []): bool
     {
         foreach ($this->conditions as $condition) {
-            if (!$condition->matches($attributes)) {
+            if (!$condition->matches($attributes, $types)) {
                 return false;
             }
         }
