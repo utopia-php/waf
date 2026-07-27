@@ -5,8 +5,8 @@ namespace Utopia\WAF\Tests;
 use PHPUnit\Framework\TestCase;
 use Utopia\WAF\Condition;
 use Utopia\WAF\Exception\Condition as ConditionException;
-use Utopia\WAF\Types\AttributeType;
-use Utopia\WAF\Types\IpType;
+use Utopia\WAF\Attribute;
+use Utopia\WAF\Attributes\IP;
 
 class ConditionTest extends TestCase
 {
@@ -236,7 +236,7 @@ class ConditionTest extends TestCase
 
     public function testEqualWithAttributeTypeMatchesCidrBlocks(): void
     {
-        $types = ['ip' => new IpType()];
+        $types = ['ip' => new IP()];
 
         $equal = Condition::equal('ip', ['203.0.113.10', '10.0.0.0/8']);
         $this->assertTrue($equal->matches(['ip' => '203.0.113.10'], $types)); // plain IP, default equality
@@ -261,7 +261,7 @@ class ConditionTest extends TestCase
     {
         // Stub type: 'MATCH' => handled match, 'BLOCK' => handled no-match,
         // anything else => null (default semantics). Records every probe.
-        $type = new class () implements AttributeType {
+        $type = new class () implements Attribute {
             /** @var array<array{string, mixed, mixed}> */
             public array $calls = [];
 
@@ -329,6 +329,6 @@ class ConditionTest extends TestCase
         $this->assertFalse($equal->matches(['ip' => '10.4.20.9']));
 
         $path = Condition::equal('path', ['/v1/health']);
-        $this->assertTrue($path->matches(['path' => '/v1/health'], ['ip' => new IpType()]));
+        $this->assertTrue($path->matches(['path' => '/v1/health'], ['ip' => new IP()]));
     }
 }

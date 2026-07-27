@@ -4,7 +4,7 @@ namespace Utopia\WAF\Tests\Validator;
 
 use PHPUnit\Framework\TestCase;
 use Utopia\WAF\Condition;
-use Utopia\WAF\Types\IpType;
+use Utopia\WAF\Attributes\IP;
 use Utopia\WAF\Validator\Conditions;
 
 class ConditionsTest extends TestCase
@@ -145,7 +145,7 @@ class ConditionsTest extends TestCase
 
     public function testTypedValueValidation(): void
     {
-        $validator = new Conditions(attributeTypes: ['ip' => new IpType()]);
+        $validator = new Conditions(attributeTypes: ['ip' => new IP()]);
 
         // Plain IPs and CIDR blocks are valid ip values.
         $this->assertTrue($validator->isValid([
@@ -167,7 +167,7 @@ class ConditionsTest extends TestCase
 
         // Aliased registration keys are normalized too: a type registered
         // under requestIp must still validate conditions written as ip.
-        $aliased = new Conditions(attributeTypes: ['requestIp' => new IpType()]);
+        $aliased = new Conditions(attributeTypes: ['requestIp' => new IP()]);
         $this->assertFalse($aliased->isValid([
             Condition::equal('ip', ['not-an-ip'])->toArray(),
         ]));

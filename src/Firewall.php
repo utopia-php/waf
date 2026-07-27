@@ -2,8 +2,7 @@
 
 namespace Utopia\WAF;
 
-use Utopia\WAF\Types\AttributeType;
-use Utopia\WAF\Types\IpType;
+use Utopia\WAF\Attributes\IP;
 
 class Firewall
 {
@@ -20,7 +19,7 @@ class Firewall
     /**
      * Typed matching semantics, keyed by normalized attribute name.
      *
-     * @var array<string, AttributeType>
+     * @var array<string, Attribute>
      */
     private array $attributeTypes;
 
@@ -29,11 +28,11 @@ class Firewall
     public function __construct()
     {
         $this->attributeTypes = [
-            'ip' => new IpType(),
+            'ip' => new IP(),
         ];
     }
 
-    public function setAttributeType(string $attribute, AttributeType $type): self
+    public function setAttributeType(string $attribute, Attribute $type): self
     {
         $this->attributeTypes[self::normalizeAttributeName($attribute)] = $type;
 
@@ -41,7 +40,7 @@ class Firewall
     }
 
     /**
-     * @return array<string, AttributeType>
+     * @return array<string, Attribute>
      */
     public function getAttributeTypes(): array
     {

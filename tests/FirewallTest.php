@@ -113,7 +113,7 @@ class FirewallTest extends TestCase
             Condition::equal('ip', ['10.0.0.0/8']),
         ]))->setId('rule_cidr');
 
-        // The requestIP alias resolves to the ip attribute and its default IpType.
+        // The requestIP alias resolves to the ip attribute and its default IP attribute type.
         $firewall = new Firewall();
         $firewall->setAttribute('requestIP', '10.4.20.9');
         $firewall->addRule($deny);

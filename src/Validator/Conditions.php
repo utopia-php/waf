@@ -5,17 +5,17 @@ namespace Utopia\WAF\Validator;
 use Utopia\Validator;
 use Utopia\WAF\Condition;
 use Utopia\WAF\Firewall;
-use Utopia\WAF\Types\AttributeType;
+use Utopia\WAF\Attribute;
 
 class Conditions extends Validator
 {
     /**
-     * @var array<string, AttributeType>
+     * @var array<string, Attribute>
      */
     private array $attributeTypes = [];
 
     /**
-     * @param array<string, AttributeType> $attributeTypes typed value validation, keyed by attribute name
+     * @param array<string, Attribute> $attributeTypes typed value validation, keyed by attribute name
      */
     public function __construct(
         private int $maxConditions = 100,

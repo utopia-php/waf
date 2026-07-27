@@ -1,15 +1,15 @@
 <?php
 
-namespace Utopia\WAF\Types;
+namespace Utopia\WAF;
 
 /**
- * AttributeType
+ * Attribute
  *
  * Typed matching semantics for a specific attribute (e.g. IP addresses).
  * Registered on the Firewall and consulted by conditions before falling
  * back to the default comparison logic.
  */
-interface AttributeType
+interface Attribute
 {
     /**
      * Attempt a typed comparison of an attribute value against an expected value.

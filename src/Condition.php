@@ -4,7 +4,6 @@ namespace Utopia\WAF;
 
 use JsonException;
 use Utopia\WAF\Exception\Condition as ConditionException;
-use Utopia\WAF\Types\AttributeType;
 
 /**
  * Condition
@@ -342,7 +341,7 @@ class Condition
      * Evaluate the condition against resolved attributes.
      *
      * @param array<string, mixed> $attributes
-     * @param array<string, \Utopia\WAF\Types\AttributeType> $types typed matching semantics, keyed by normalized attribute name
+     * @param array<string, Attribute> $types typed matching semantics, keyed by normalized attribute name
      */
     public function matches(array $attributes, array $types = []): bool
     {
@@ -399,7 +398,7 @@ class Condition
 
     /**
      * @param array<string, mixed> $attributes
-     * @param array<string, \Utopia\WAF\Types\AttributeType> $types
+     * @param array<string, Attribute> $types
      */
     private function matchesLogical(array $attributes, array $types): bool
     {
@@ -422,7 +421,7 @@ class Condition
         return false;
     }
 
-    private function matchesEqual(mixed $value, ?AttributeType $type = null): bool
+    private function matchesEqual(mixed $value, ?Attribute $type = null): bool
     {
         foreach ($this->values as $expected) {
             // Always probe with equality semantics: notEqual is the negation
@@ -455,7 +454,7 @@ class Condition
     /**
      * @param array<mixed> $needles
      */
-    private function matchesContains(mixed $value, array $needles, ?AttributeType $type = null): bool
+    private function matchesContains(mixed $value, array $needles, ?Attribute $type = null): bool
     {
         foreach ($needles as $needle) {
             $handled = $type?->compare(self::TYPE_CONTAINS, $value, $needle);
@@ -489,7 +488,7 @@ class Condition
         return false;
     }
 
-    private function matchesRange(mixed $value, bool $inclusive, ?AttributeType $type = null): bool
+    private function matchesRange(mixed $value, bool $inclusive, ?Attribute $type = null): bool
     {
         // Ranges are probed once with the full [start, end] pair.
         $handled = $type?->compare(self::TYPE_BETWEEN, $value, $this->values);
@@ -519,7 +518,7 @@ class Condition
             : $startComparison > 0 && $endComparison < 0;
     }
 
-    private function matchesPrefix(mixed $value, ?AttributeType $type = null): bool
+    private function matchesPrefix(mixed $value, ?Attribute $type = null): bool
     {
         $prefix = $this->values[0] ?? null;
 
@@ -535,7 +534,7 @@ class Condition
         return str_starts_with(\strtolower($value), \strtolower($prefix));
     }
 
-    private function matchesSuffix(mixed $value, ?AttributeType $type = null): bool
+    private function matchesSuffix(mixed $value, ?Attribute $type = null): bool
     {
         $suffix = $this->values[0] ?? null;
 
@@ -611,7 +610,7 @@ class Condition
     /**
      * @param callable(int):bool $verdict
      */
-    private function matchesRelational(mixed $value, mixed $reference, callable $verdict, ?AttributeType $type = null): bool
+    private function matchesRelational(mixed $value, mixed $reference, callable $verdict, ?Attribute $type = null): bool
     {
         $handled = $type?->compare($this->method, $value, $reference);
         if ($handled !== null) {

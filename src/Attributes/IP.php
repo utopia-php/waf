@@ -1,17 +1,18 @@
 <?php
 
-namespace Utopia\WAF\Types;
+namespace Utopia\WAF\Attributes;
 
+use Utopia\WAF\Attribute;
 use Utopia\WAF\Condition;
 
 /**
- * IpType
+ * IP
  *
  * Lets IP-valued attributes match against CIDR blocks alongside plain IPs,
  * e.g. equal('ip', ['203.0.113.10', '10.0.0.0/8']). Plain IP values fall
  * back to the default case-insensitive string equality.
  */
-class IpType implements AttributeType
+class IP implements Attribute
 {
     public function compare(string $method, mixed $value, mixed $expected): ?bool
     {

@@ -1,18 +1,18 @@
 <?php
 
-namespace Utopia\WAF\Tests\Types;
+namespace Utopia\WAF\Tests\Attributes;
 
 use PHPUnit\Framework\TestCase;
 use Utopia\WAF\Condition;
-use Utopia\WAF\Types\IpType;
+use Utopia\WAF\Attributes\IP;
 
-class IpTypeTest extends TestCase
+class IPTest extends TestCase
 {
-    private IpType $type;
+    private IP $type;
 
     protected function setUp(): void
     {
-        $this->type = new IpType();
+        $this->type = new IP();
     }
 
     public function testCompareHandlesCidrValues(): void
