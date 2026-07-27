@@ -4,6 +4,7 @@ namespace Utopia\WAF\Tests\Validator;
 
 use PHPUnit\Framework\TestCase;
 use Utopia\WAF\Condition;
+use Utopia\WAF\Types\IpType;
 use Utopia\WAF\Validator\Conditions;
 
 class ConditionsTest extends TestCase
@@ -139,6 +140,50 @@ class ConditionsTest extends TestCase
                 'method' => Condition::TYPE_AND,
                 'values' => [],
             ],
+        ]));
+    }
+
+    public function testTypedValueValidation(): void
+    {
+        $validator = new Conditions(attributeTypes: ['ip' => new IpType()]);
+
+        // Plain IPs and CIDR blocks are valid ip values.
+        $this->assertTrue($validator->isValid([
+            Condition::equal('ip', ['203.0.113.10', '10.0.0.0/8'])->toArray(),
+        ]));
+
+        // Malformed CIDR and non-IP strings are rejected.
+        $this->assertFalse($validator->isValid([
+            Condition::equal('ip', ['10.0.0.0/33'])->toArray(),
+        ]));
+        $this->assertFalse($validator->isValid([
+            Condition::equal('ip', ['not-an-ip'])->toArray(),
+        ]));
+
+        // The requestIp alias resolves to the same type.
+        $this->assertFalse($validator->isValid([
+            Condition::equal('requestIp', ['not-an-ip'])->toArray(),
+        ]));
+
+        // Nested conditions are checked too.
+        $this->assertFalse($validator->isValid([
+            [
+                'method' => Condition::TYPE_OR,
+                'values' => [
+                    Condition::equal('ip', ['bogus'])->toArray(),
+                    Condition::equal('country', ['US'])->toArray(),
+                ],
+            ],
+        ]));
+
+        // Untyped attributes are unaffected.
+        $this->assertTrue($validator->isValid([
+            Condition::equal('path', ['/v1/health'])->toArray(),
+        ]));
+
+        // Without types, previous behavior is preserved.
+        $this->assertTrue((new Conditions())->isValid([
+            Condition::equal('ip', ['not-an-ip'])->toArray(),
         ]));
     }
 }
