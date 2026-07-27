@@ -10,13 +10,21 @@ use Utopia\WAF\Types\AttributeType;
 class Conditions extends Validator
 {
     /**
+     * @var array<string, AttributeType>
+     */
+    private array $attributeTypes = [];
+
+    /**
      * @param array<string, AttributeType> $attributeTypes typed value validation, keyed by attribute name
      */
     public function __construct(
         private int $maxConditions = 100,
         private int $maxPayloadLength = 4096,
-        private array $attributeTypes = []
+        array $attributeTypes = []
     ) {
+        foreach ($attributeTypes as $attribute => $type) {
+            $this->attributeTypes[Firewall::normalizeAttributeName($attribute)] = $type;
+        }
     }
 
     public function getDescription(): string

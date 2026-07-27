@@ -165,6 +165,19 @@ class ConditionsTest extends TestCase
             Condition::equal('requestIp', ['not-an-ip'])->toArray(),
         ]));
 
+        // Aliased registration keys are normalized too: a type registered
+        // under requestIp must still validate conditions written as ip.
+        $aliased = new Conditions(attributeTypes: ['requestIp' => new IpType()]);
+        $this->assertFalse($aliased->isValid([
+            Condition::equal('ip', ['not-an-ip'])->toArray(),
+        ]));
+        $this->assertFalse($aliased->isValid([
+            Condition::equal('IP', ['10.0.0.0/33'])->toArray(),
+        ]));
+        $this->assertTrue($aliased->isValid([
+            Condition::equal('ip', ['10.0.0.0/8'])->toArray(),
+        ]));
+
         // Nested conditions are checked too.
         $this->assertFalse($validator->isValid([
             [
