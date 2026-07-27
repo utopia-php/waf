@@ -5,6 +5,7 @@ namespace Utopia\WAF\Tests;
 use PHPUnit\Framework\TestCase;
 use Utopia\WAF\Condition;
 use Utopia\WAF\Exception\Condition as ConditionException;
+use Utopia\WAF\Types\AttributeType;
 use Utopia\WAF\Types\IpType;
 
 class ConditionTest extends TestCase
@@ -254,6 +255,70 @@ class ConditionTest extends TestCase
         ]);
         $this->assertTrue($nested->matches(['ip' => '10.1.1.1', 'country' => 'IN'], $types));
         $this->assertFalse($nested->matches(['ip' => '11.1.1.1', 'country' => 'IN'], $types));
+    }
+
+    public function testAttributeTypeIsProbedForAllOperators(): void
+    {
+        // Stub type: 'MATCH' => handled match, 'BLOCK' => handled no-match,
+        // anything else => null (default semantics). Records every probe.
+        $type = new class () implements AttributeType {
+            /** @var array<array{string, mixed, mixed}> */
+            public array $calls = [];
+
+            public function compare(string $method, mixed $value, mixed $expected): ?bool
+            {
+                $this->calls[] = [$method, $value, $expected];
+
+                $needles = \is_array($expected) ? $expected : [$expected];
+
+                if (\in_array('MATCH', $needles, true)) {
+                    return true;
+                }
+
+                if (\in_array('BLOCK', $needles, true)) {
+                    return false;
+                }
+
+                return null;
+            }
+
+            public function validateValue(string $method, mixed $expected): ?string
+            {
+                return null;
+            }
+        };
+        $types = ['tag' => $type];
+
+        // contains: typed match wins even where default semantics would miss.
+        $this->assertTrue(Condition::contains('tag', ['MATCH'])->matches(['tag' => 'nothing-alike'], $types));
+
+        // contains: a handled "no" suppresses the default substring match.
+        $this->assertFalse(Condition::contains('tag', ['BLOCK'])->matches(['tag' => 'has BLOCK inside'], $types));
+        $this->assertTrue(Condition::notContains('tag', ['BLOCK'])->matches(['tag' => 'has BLOCK inside'], $types));
+
+        // contains: unhandled needles keep default semantics.
+        $this->assertTrue(Condition::contains('tag', ['inside'])->matches(['tag' => 'has BLOCK inside'], $types));
+
+        // startsWith / endsWith and their negations probe the positive operator.
+        $this->assertTrue(Condition::startsWith('tag', 'MATCH')->matches(['tag' => 'zzz'], $types));
+        $this->assertFalse(Condition::notStartsWith('tag', 'MATCH')->matches(['tag' => 'zzz'], $types));
+        $this->assertTrue(Condition::endsWith('tag', 'MATCH')->matches(['tag' => 'zzz'], $types));
+
+        // Relational operators consult the type with their own method.
+        $this->assertTrue(Condition::lessThan('tag', 'MATCH')->matches(['tag' => 'zzz'], $types));
+        $this->assertTrue(Condition::greaterThanEqual('tag', 'MATCH')->matches(['tag' => 'zzz'], $types));
+
+        // between probes once with the full [start, end] pair.
+        $type->calls = [];
+        $this->assertTrue(Condition::between('tag', 'MATCH', 'end')->matches(['tag' => 'zzz'], $types));
+        $this->assertSame([[Condition::TYPE_BETWEEN, 'zzz', ['MATCH', 'end']]], $type->calls);
+        $this->assertFalse(Condition::notBetween('tag', 'MATCH', 'end')->matches(['tag' => 'zzz'], $types));
+
+        // isNull/isNotNull stay type-agnostic: never probed.
+        $type->calls = [];
+        $this->assertTrue(Condition::isNull('tag')->matches(['tag' => null], $types));
+        $this->assertTrue(Condition::isNotNull('tag')->matches(['tag' => 'zzz'], $types));
+        $this->assertSame([], $type->calls);
     }
 
     public function testEqualWithoutTypesKeepsPlainStringSemantics(): void
