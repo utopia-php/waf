@@ -341,30 +341,32 @@ class Condition
      * Evaluate the condition against resolved attributes.
      *
      * @param array<string, mixed> $attributes
+     * @param array<string, Attribute> $types typed matching semantics, keyed by normalized attribute name
      */
-    public function matches(array $attributes): bool
+    public function matches(array $attributes, array $types = []): bool
     {
         if ($this->isLogical()) {
-            return $this->matchesLogical($attributes);
+            return $this->matchesLogical($attributes, $types);
         }
 
         $value = $this->resolveValue($attributes);
+        $type = $types === [] ? null : ($types[Firewall::normalizeAttributeName($this->attribute)] ?? null);
 
         return match ($this->method) {
-            self::TYPE_EQUAL => $this->matchesEqual($value),
-            self::TYPE_NOT_EQUAL => !$this->matchesEqual($value),
-            self::TYPE_LESS_THAN => $this->matchesRelational($value, $this->values[0] ?? null, static fn (int $result): bool => $result < 0),
-            self::TYPE_LESS_THAN_EQUAL => $this->matchesRelational($value, $this->values[0] ?? null, static fn (int $result): bool => $result <= 0),
-            self::TYPE_GREATER_THAN => $this->matchesRelational($value, $this->values[0] ?? null, static fn (int $result): bool => $result > 0),
-            self::TYPE_GREATER_THAN_EQUAL => $this->matchesRelational($value, $this->values[0] ?? null, static fn (int $result): bool => $result >= 0),
-            self::TYPE_CONTAINS => $this->matchesContains($value, $this->values),
-            self::TYPE_NOT_CONTAINS => !$this->matchesContains($value, $this->values),
-            self::TYPE_BETWEEN => $this->matchesRange($value, true),
-            self::TYPE_NOT_BETWEEN => !$this->matchesRange($value, true),
-            self::TYPE_STARTS_WITH => $this->matchesPrefix($value),
-            self::TYPE_NOT_STARTS_WITH => !$this->matchesPrefix($value),
-            self::TYPE_ENDS_WITH => $this->matchesSuffix($value),
-            self::TYPE_NOT_ENDS_WITH => !$this->matchesSuffix($value),
+            self::TYPE_EQUAL => $this->matchesEqual($value, $type),
+            self::TYPE_NOT_EQUAL => !$this->matchesEqual($value, $type),
+            self::TYPE_LESS_THAN => $this->matchesRelational($value, $this->values[0] ?? null, static fn (int $result): bool => $result < 0, $type),
+            self::TYPE_LESS_THAN_EQUAL => $this->matchesRelational($value, $this->values[0] ?? null, static fn (int $result): bool => $result <= 0, $type),
+            self::TYPE_GREATER_THAN => $this->matchesRelational($value, $this->values[0] ?? null, static fn (int $result): bool => $result > 0, $type),
+            self::TYPE_GREATER_THAN_EQUAL => $this->matchesRelational($value, $this->values[0] ?? null, static fn (int $result): bool => $result >= 0, $type),
+            self::TYPE_CONTAINS => $this->matchesContains($value, $this->values, $type),
+            self::TYPE_NOT_CONTAINS => !$this->matchesContains($value, $this->values, $type),
+            self::TYPE_BETWEEN => $this->matchesRange($value, true, $type),
+            self::TYPE_NOT_BETWEEN => !$this->matchesRange($value, true, $type),
+            self::TYPE_STARTS_WITH => $this->matchesPrefix($value, $type),
+            self::TYPE_NOT_STARTS_WITH => !$this->matchesPrefix($value, $type),
+            self::TYPE_ENDS_WITH => $this->matchesSuffix($value, $type),
+            self::TYPE_NOT_ENDS_WITH => !$this->matchesSuffix($value, $type),
             self::TYPE_IS_NULL => $value === null,
             self::TYPE_IS_NOT_NULL => $value !== null,
             default => false,
@@ -396,12 +398,13 @@ class Condition
 
     /**
      * @param array<string, mixed> $attributes
+     * @param array<string, Attribute> $types
      */
-    private function matchesLogical(array $attributes): bool
+    private function matchesLogical(array $attributes, array $types): bool
     {
         if ($this->method === self::TYPE_AND) {
             foreach ($this->values as $condition) {
-                if (!$condition->matches($attributes)) {
+                if (!$condition->matches($attributes, $types)) {
                     return false;
                 }
             }
@@ -410,7 +413,7 @@ class Condition
         }
 
         foreach ($this->values as $condition) {
-            if ($condition->matches($attributes)) {
+            if ($condition->matches($attributes, $types)) {
                 return true;
             }
         }
@@ -418,9 +421,20 @@ class Condition
         return false;
     }
 
-    private function matchesEqual(mixed $value): bool
+    private function matchesEqual(mixed $value, ?Attribute $type = null): bool
     {
         foreach ($this->values as $expected) {
+            // Always probe with equality semantics: notEqual is the negation
+            // of this method's result, applied by the caller.
+            $handled = $type?->compare(self::TYPE_EQUAL, $value, $expected);
+            if ($handled === true) {
+                return true;
+            }
+
+            if ($handled === false) {
+                continue;
+            }
+
             if (\is_string($expected) && \is_string($value)) {
                 if (\strtolower($expected) === \strtolower($value)) {
                     return true;
@@ -440,37 +454,48 @@ class Condition
     /**
      * @param array<mixed> $needles
      */
-    private function matchesContains(mixed $value, array $needles): bool
+    private function matchesContains(mixed $value, array $needles, ?Attribute $type = null): bool
     {
-        if (\is_array($value)) {
-            // Mirror the old array_intersect() semantics (scalars compared as
-            // strings, so 200 matches '200') while folding case.
-            foreach ($value as $item) {
-                foreach ($needles as $needle) {
+        foreach ($needles as $needle) {
+            $handled = $type?->compare(self::TYPE_CONTAINS, $value, $needle);
+            if ($handled === true) {
+                return true;
+            }
+
+            if ($handled === false) {
+                continue;
+            }
+
+            if (\is_array($value)) {
+                // Mirror the old array_intersect() semantics (scalars compared
+                // as strings, so 200 matches '200') while folding case.
+                foreach ($value as $item) {
                     if (\is_scalar($item) && \is_scalar($needle)
                         && \strtolower((string) $item) === \strtolower((string) $needle)) {
                         return true;
                     }
                 }
+
+                continue;
             }
 
-            return false;
-        }
-
-        if (\is_string($value)) {
-            $haystack = \strtolower($value);
-            foreach ($needles as $needle) {
-                if (\is_string($needle) && $needle !== '' && str_contains($haystack, \strtolower($needle))) {
-                    return true;
-                }
+            if (\is_string($value) && \is_string($needle) && $needle !== ''
+                && str_contains(\strtolower($value), \strtolower($needle))) {
+                return true;
             }
         }
 
         return false;
     }
 
-    private function matchesRange(mixed $value, bool $inclusive): bool
+    private function matchesRange(mixed $value, bool $inclusive, ?Attribute $type = null): bool
     {
+        // Ranges are probed once with the full [start, end] pair.
+        $handled = $type?->compare(self::TYPE_BETWEEN, $value, $this->values);
+        if ($handled !== null) {
+            return $handled;
+        }
+
         if (\count($this->values) < 2) {
             return false;
         }
@@ -493,9 +518,14 @@ class Condition
             : $startComparison > 0 && $endComparison < 0;
     }
 
-    private function matchesPrefix(mixed $value): bool
+    private function matchesPrefix(mixed $value, ?Attribute $type = null): bool
     {
         $prefix = $this->values[0] ?? null;
+
+        $handled = $type?->compare(self::TYPE_STARTS_WITH, $value, $prefix);
+        if ($handled !== null) {
+            return $handled;
+        }
 
         if (!\is_string($value) || !\is_string($prefix)) {
             return false;
@@ -504,9 +534,14 @@ class Condition
         return str_starts_with(\strtolower($value), \strtolower($prefix));
     }
 
-    private function matchesSuffix(mixed $value): bool
+    private function matchesSuffix(mixed $value, ?Attribute $type = null): bool
     {
         $suffix = $this->values[0] ?? null;
+
+        $handled = $type?->compare(self::TYPE_ENDS_WITH, $value, $suffix);
+        if ($handled !== null) {
+            return $handled;
+        }
 
         if (!\is_string($value) || !\is_string($suffix)) {
             return false;
@@ -575,8 +610,13 @@ class Condition
     /**
      * @param callable(int):bool $verdict
      */
-    private function matchesRelational(mixed $value, mixed $reference, callable $verdict): bool
+    private function matchesRelational(mixed $value, mixed $reference, callable $verdict, ?Attribute $type = null): bool
     {
+        $handled = $type?->compare($this->method, $value, $reference);
+        if ($handled !== null) {
+            return $handled;
+        }
+
         if ($value === null || $reference === null) {
             return false;
         }
