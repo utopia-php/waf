@@ -4,7 +4,7 @@
         "Read more about it at https://getcomposer.org/doc/01-basic-usage.md#installing-dependencies",
         "This file is @generated automatically"
     ],
-    "content-hash": "8e77b77238ab505b3d8332e42b63d3b5",
+    "content-hash": "09276acde7c1a37357a3e63c07727b92",
     "packages": [
         {
             "name": "utopia-php/validators",
