@@ -4,20 +4,20 @@
         "Read more about it at https://getcomposer.org/doc/01-basic-usage.md#installing-dependencies",
         "This file is @generated automatically"
     ],
-    "content-hash": "09276acde7c1a37357a3e63c07727b92",
+    "content-hash": "c38ad662580a810191f206e22284cc16",
     "packages": [
         {
             "name": "utopia-php/validators",
-            "version": "0.4.1",
+            "version": "0.5.0",
             "source": {
                 "type": "git",
                 "url": "https://github.com/utopia-php/validators.git",
-                "reference": "61832b7c863831466ccdeccd4e4f76a43765fbbf"
+                "reference": "ea6c1ad13019c8a088866cf422c232928de5a25e"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/utopia-php/validators/zipball/61832b7c863831466ccdeccd4e4f76a43765fbbf",
-                "reference": "61832b7c863831466ccdeccd4e4f76a43765fbbf",
+                "url": "https://api.github.com/repos/utopia-php/validators/zipball/ea6c1ad13019c8a088866cf422c232928de5a25e",
+                "reference": "ea6c1ad13019c8a088866cf422c232928de5a25e",
                 "shasum": ""
             },
             "require": {
@@ -42,9 +42,9 @@
             ],
             "support": {
                 "issues": "https://github.com/utopia-php/validators/issues",
-                "source": "https://github.com/utopia-php/validators/tree/0.4.1"
+                "source": "https://github.com/utopia-php/validators/tree/0.5.0"
             },
-            "time": "2026-08-10T04:15:37+00:00"
+            "time": "2026-08-14T05:12:07+00:00"
         }
     ],
     "packages-dev": [
