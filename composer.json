@@ -5,7 +5,7 @@
     "license": "MIT",
     "require": {
         "php": ">=8.5",
-        "utopia-php/validators": "^0.5"
+        "utopia-php/validators": "^1.0"
     },
     "require-dev": {
         "laravel/pint": "^1.18",
