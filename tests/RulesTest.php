@@ -7,6 +7,7 @@ use Utopia\WAF\Condition;
 use Utopia\WAF\Rules\Bypass;
 use Utopia\WAF\Rules\Challenge;
 use Utopia\WAF\Rules\Deny;
+use Utopia\WAF\Rules\Headers;
 use Utopia\WAF\Rules\RateLimit;
 use Utopia\WAF\Rules\Redirect;
 
@@ -66,5 +67,36 @@ class RulesTest extends TestCase
         $this->assertSame('redirect', $rule->getAction());
         $this->assertSame('/new', $rule->getLocation());
         $this->assertSame(301, $rule->getStatusCode());
+    }
+
+    public function testHeadersRule(): void
+    {
+        $rule = new Headers([
+            Condition::startsWith('path', '/api'),
+        ], headers: ['X-Frame-Options' => 'DENY']);
+
+        $this->assertTrue($rule->matches(['path' => '/api/users']));
+        $this->assertSame('headers', $rule->getAction());
+        $this->assertSame(['X-Frame-Options' => 'DENY'], $rule->getHeaders());
+        $this->assertFalse($rule->isTerminal());
+        $this->assertTrue((new Deny())->isTerminal());
+    }
+
+    public function testHeadersRuleRejectsEmptyHeaders(): void
+    {
+        $this->expectException(\InvalidArgumentException::class);
+        new Headers([], headers: []);
+    }
+
+    public function testHeadersRuleRejectsInvalidName(): void
+    {
+        $this->expectException(\InvalidArgumentException::class);
+        new Headers([], headers: ['X Frame: Options' => 'DENY']);
+    }
+
+    public function testHeadersRuleRejectsLineBreaksInValue(): void
+    {
+        $this->expectException(\InvalidArgumentException::class);
+        new Headers([], headers: ['X-Frame-Options' => "DENY\r\nSet-Cookie: session=1"]);
     }
 }

@@ -7,6 +7,7 @@ use Utopia\WAF\Condition;
 use Utopia\WAF\Firewall;
 use Utopia\WAF\Rules\Bypass;
 use Utopia\WAF\Rules\Deny;
+use Utopia\WAF\Rules\Headers;
 use Utopia\WAF\Rules\RateLimit;
 
 class FirewallTest extends TestCase
@@ -148,5 +149,72 @@ class FirewallTest extends TestCase
 
         $this->assertFalse($outside->verify());
         $this->assertSame('rule_outside', $outside->getLastMatchedRule()?->getId());
+    }
+
+    public function testHeadersRuleDoesNotStopEvaluation(): void
+    {
+        $headers = (new Headers([
+            Condition::startsWith('path', '/api'),
+        ], headers: ['X-Frame-Options' => 'DENY']))->setId('rule_headers');
+
+        $deny = (new Deny([
+            Condition::equal('method', ['POST']),
+        ]))->setId('rule_deny');
+
+        $firewall = new Firewall();
+        $firewall->setAttributes(['path' => '/api/users', 'method' => 'POST']);
+        $firewall->addRule($headers);
+        $firewall->addRule($deny);
+
+        // The headers rule matches first but the deny after it still decides.
+        $this->assertFalse($firewall->verify());
+        $this->assertSame($deny, $firewall->getLastMatchedRule());
+        $this->assertSame([$headers], $firewall->getMatchedNonTerminalRules());
+    }
+
+    public function testHeadersRulesAreCollectedInOrderWithoutTerminalMatch(): void
+    {
+        $first = new Headers([Condition::startsWith('path', '/api')], headers: ['X-Frame-Options' => 'DENY']);
+        $miss = new Headers([Condition::startsWith('path', '/admin')], headers: ['X-Robots-Tag' => 'noindex']);
+        $second = new Headers([], headers: ['Referrer-Policy' => 'no-referrer']);
+
+        $firewall = new Firewall();
+        $firewall->setAttribute('path', '/api/users');
+        $firewall->setRules([$first, $miss, $second]);
+
+        // No terminal rule matched, so the verdict is the same as for no match.
+        $this->assertFalse($firewall->verify());
+        $this->assertNull($firewall->getLastMatchedRule());
+        $this->assertSame([$first, $second], $firewall->getMatchedNonTerminalRules());
+    }
+
+    public function testHeadersRuleAfterTerminalMatchIsNotEvaluated(): void
+    {
+        $bypass = new Bypass([Condition::equal('method', ['GET'])]);
+        $headers = new Headers([], headers: ['X-Frame-Options' => 'DENY']);
+
+        $firewall = new Firewall();
+        $firewall->setAttribute('method', 'GET');
+        $firewall->setRules([$bypass, $headers]);
+
+        $this->assertTrue($firewall->verify());
+        $this->assertSame($bypass, $firewall->getLastMatchedRule());
+        $this->assertSame([], $firewall->getMatchedNonTerminalRules());
+    }
+
+    public function testMatchedNonTerminalRulesResetBetweenVerifyCalls(): void
+    {
+        $headers = new Headers([Condition::startsWith('path', '/api')], headers: ['X-Frame-Options' => 'DENY']);
+
+        $firewall = new Firewall();
+        $firewall->addRule($headers);
+
+        $firewall->setAttribute('path', '/api/users');
+        $firewall->verify();
+        $this->assertSame([$headers], $firewall->getMatchedNonTerminalRules());
+
+        $firewall->setAttribute('path', '/home');
+        $firewall->verify();
+        $this->assertSame([], $firewall->getMatchedNonTerminalRules());
     }
 }
