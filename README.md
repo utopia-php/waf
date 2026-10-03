@@ -8,7 +8,7 @@ Lite & fast micro PHP Web Application Firewall (WAF) rules management library th
 The library ships with:
 
 - A `Condition` builder that mirrors the API of [`Utopia\Database\Query`](https://github.com/utopia-php/database/blob/main/src/Database/Query.php), including JSON parsing helpers and logical operators.
-- Action specific rule classes (`Bypass`, `Deny`, `Challenge`, `RateLimit`, `Redirect`).
+- Action specific rule classes (`Bypass`, `Deny`, `Challenge`, `RateLimit`, `Redirect`, `Headers`).
 - A dependency-free `Firewall` orchestrator that evaluates rules against any set of request attributes.
 
 ## Installation
@@ -101,6 +101,34 @@ if ($firewall->verify()) {
     }
 }
 ```
+
+### Response Headers
+
+`Headers` rules carry response headers to add when the rule matches. They are non-terminal: a match does not decide the request, so the firewall records the rule and keeps evaluating the rules after it. Collect the matches with `getMatchedNonTerminalRules()` and write the headers onto your response.
+
+```php
+use Utopia\WAF\Rules\Headers;
+
+$firewall->addRule(new Headers([
+    Condition::startsWith('path', '/api'),
+], headers: ['X-Frame-Options' => 'DENY']));
+
+$firewall->addRule(new Deny([
+    Condition::equal('ip', ['203.0.113.12']),
+]));
+
+$allowed = $firewall->verify(); // decided by Deny, or false when no terminal rule matches
+
+foreach ($firewall->getMatchedNonTerminalRules() as $rule) {
+    if ($rule instanceof Headers) {
+        foreach ($rule->getHeaders() as $name => $value) {
+            // Add the header to your response
+        }
+    }
+}
+```
+
+Evaluation stops at the first terminal match, so place `Headers` rules ahead of the terminal rules they should apply alongside. Header names and values are validated on construction; a value containing line breaks is rejected.
 
 ### Testing Locally
 

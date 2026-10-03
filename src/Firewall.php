@@ -25,6 +25,11 @@ class Firewall
 
     private ?Rule $lastMatchedRule = null;
 
+    /**
+     * @var array<Rule>
+     */
+    private array $matchedNonTerminalRules = [];
+
     public function __construct()
     {
         $this->attributeTypes = [
@@ -121,25 +126,50 @@ class Firewall
         return $this;
     }
 
+    /**
+     * The terminal rule that decided the last verify() call, if any.
+     */
     public function getLastMatchedRule(): ?Rule
     {
         return $this->lastMatchedRule;
     }
 
     /**
+     * The non-terminal rules that matched during the last verify() call, in
+     * evaluation order. Rules placed after the terminal match are never
+     * evaluated, so they are not included.
+     *
+     * @return array<Rule>
+     */
+    public function getMatchedNonTerminalRules(): array
+    {
+        return $this->matchedNonTerminalRules;
+    }
+
+    /**
      * Evaluate registered rules in order against populated attributes.
      *
-     * Sets the matched rule via getLastMatchedRule() when a rule's conditions
-     * match. Returns whether that rule's action allows the request to continue
-     * (bypass/rateLimit) or should be blocked (deny/challenge/redirect).
-     * Returns false when no rule matches.
+     * Sets the matched rule via getLastMatchedRule() when a terminal rule's
+     * conditions match. Returns whether that rule's action allows the request
+     * to continue (bypass/rateLimit) or should be blocked
+     * (deny/challenge/redirect). Returns false when no terminal rule matches.
+     *
+     * Non-terminal rules (headers) that match on the way are collected via
+     * getMatchedNonTerminalRules() and do not stop evaluation.
      */
     public function verify(): bool
     {
         $this->lastMatchedRule = null;
+        $this->matchedNonTerminalRules = [];
 
         foreach ($this->rules as $rule) {
             if (!$rule->matches($this->attributes, $this->attributeTypes)) {
+                continue;
+            }
+
+            if (!$rule->isTerminal()) {
+                $this->matchedNonTerminalRules[] = $rule;
+
                 continue;
             }
 

@@ -9,6 +9,7 @@ abstract class Rule
     public const ACTION_CHALLENGE = 'challenge';
     public const ACTION_RATE_LIMIT = 'rateLimit';
     public const ACTION_REDIRECT = 'redirect';
+    public const ACTION_HEADERS = 'headers';
 
     /**
      * @var array<Condition>
@@ -35,6 +36,16 @@ abstract class Rule
     }
 
     abstract public function getAction(): string;
+
+    /**
+     * Whether a match ends rule evaluation. Terminal rules decide the request;
+     * non-terminal rules only contribute something (such as response headers)
+     * and let the rules after them run.
+     */
+    public function isTerminal(): bool
+    {
+        return true;
+    }
 
     public function setId(string $id): self
     {
