@@ -3,8 +3,8 @@
 namespace Utopia\WAF\Tests\Validator;
 
 use PHPUnit\Framework\TestCase;
-use Utopia\WAF\Condition;
 use Utopia\WAF\Attributes\IP;
+use Utopia\WAF\Condition;
 use Utopia\WAF\Validator\Conditions;
 
 class ConditionsTest extends TestCase

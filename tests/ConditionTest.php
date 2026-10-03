@@ -3,10 +3,10 @@
 namespace Utopia\WAF\Tests;
 
 use PHPUnit\Framework\TestCase;
-use Utopia\WAF\Condition;
-use Utopia\WAF\Exception\Condition as ConditionException;
 use Utopia\WAF\Attribute;
 use Utopia\WAF\Attributes\IP;
+use Utopia\WAF\Condition;
+use Utopia\WAF\Exception\Condition as ConditionException;
 
 class ConditionTest extends TestCase
 {

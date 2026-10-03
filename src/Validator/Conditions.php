@@ -3,9 +3,9 @@
 namespace Utopia\WAF\Validator;
 
 use Utopia\Validator;
+use Utopia\WAF\Attribute;
 use Utopia\WAF\Condition;
 use Utopia\WAF\Firewall;
-use Utopia\WAF\Attribute;
 
 class Conditions extends Validator
 {

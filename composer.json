@@ -7,11 +7,6 @@
         "php": ">=8.5",
         "utopia-php/validators": "^1.0"
     },
-    "require-dev": {
-        "laravel/pint": "^1.18",
-        "phpstan/phpstan": "^1.11",
-        "phpunit/phpunit": "^11.0"
-    },
     "autoload": {
         "psr-4": {
             "Utopia\\WAF\\": "src/"
@@ -23,10 +18,7 @@
         }
     },
     "scripts": {
-        "check": "vendor/bin/phpstan analyse -c phpstan.neon --memory-limit 512M",
-        "lint": "vendor/bin/pint --test",
-        "format": "vendor/bin/pint",
-        "test": "vendor/bin/phpunit --configuration phpunit.xml"
+        "test": "phpunit --configuration phpunit.xml"
     },
     "minimum-stability": "stable",
     "prefer-stable": true

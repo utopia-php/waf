@@ -1,5 +1,8 @@
 # Utopia WAF
 
+> [!IMPORTANT]
+> This repository is a read-only mirror of `packages/waf` in Appwrite's private Cloud repository (appwrite-labs/cloud). Development happens there, so pull requests and issues opened here are closed automatically.
+
 Lite & fast micro PHP Web Application Firewall (WAF) rules management library that is **easy to use** and fits naturally inside the [Utopia](https://github.com/utopia-php) ecosystem.
 
 The library ships with:
@@ -101,8 +104,18 @@ if ($firewall->verify()) {
 
 ### Testing Locally
 
+The package is developed in `packages/waf` of appwrite-labs/cloud, which supplies PHPUnit, Pint, PHPStan and Rector. From that repository's root:
+
+```bash
+bin/monorepo test waf          # unit tests
+bin/monorepo check waf --fix   # Pint, PHPStan, Rector
+```
+
+On a standalone checkout of this mirror, the manifest no longer pulls in PHPUnit, so add it first:
+
 ```bash
 composer install
+composer require --dev phpunit/phpunit:^12
 composer test
 ```
 
