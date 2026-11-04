@@ -102,6 +102,39 @@ if ($firewall->verify()) {
 }
 ```
 
+### Schedules
+
+A rule can be limited to certain days and an optional time window. A rule without a schedule is always active. `verify()` skips rules outside their schedule, so a later rule can still match. Days, dates and times are read on the clock of the schedule's `timezone`, an IANA name such as `Asia/Kolkata`; without one they are UTC.
+
+```php
+use Utopia\WAF\Condition;
+use Utopia\WAF\Rules\Deny;
+use Utopia\WAF\Schedule;
+
+$deny = new Deny([
+    Condition::equal('country', ['US']),
+]);
+
+// Weekend nights, 22:00 to 06:00. A window that crosses midnight belongs to the day it starts on.
+$deny->setSchedule(Schedule::fromArray([
+    'mode' => 'weekly',
+    'days' => [5, 6], // ISO weekdays, 1 = Monday to 7 = Sunday
+    'startTime' => '22:00',
+    'endTime' => '06:00',
+    'timezone' => 'America/New_York',
+]));
+```
+
+| Mode | Needs | Active on |
+|------|-------|-----------|
+| `daily` | | every day |
+| `weekly` | `days` | the listed weekdays |
+| `biweekly` | `days`, `anchor` | the listed weekdays in every other week, counting from the week of `anchor` |
+| `weekends` | | Saturday and Sunday |
+| `everyNDays` | `interval` (2-365), `anchor` | every `interval` days, counting from `anchor` |
+
+`anchor` is a `YYYY-MM-DD` date; a rule is never active before it. `startTime` and `endTime` are `HH:MM` and go together; leave both out for the whole day, and use `endTime: '00:00'` to run until midnight. `Schedule::fromArray()` throws `Utopia\WAF\Exception\Schedule` on anything else, and `Utopia\WAF\Validator\Schedule` wraps the same checks for request input. On a daylight-saving change, a window that starts inside the skipped hour opens when the clock lands past it, and a window inside the repeated hour is active both times that hour occurs. `Firewall::setClock()` replaces `time()` as the source of the current time, for tests.
+
 ### Testing Locally
 
 The package is developed in `packages/waf` of appwrite-labs/cloud, which supplies PHPUnit, Pint, PHPStan and Rector. From that repository's root:

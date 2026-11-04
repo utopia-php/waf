@@ -17,6 +17,8 @@ abstract class Rule
 
     private ?string $id = null;
 
+    private ?Schedule $schedule = null;
+
     /**
      * @param array<Condition|array<string, mixed>> $conditions
      */
@@ -46,6 +48,26 @@ abstract class Rule
     public function getId(): ?string
     {
         return $this->id;
+    }
+
+    /**
+     * A rule without a schedule is always active.
+     */
+    public function setSchedule(?Schedule $schedule): self
+    {
+        $this->schedule = $schedule;
+
+        return $this;
+    }
+
+    public function getSchedule(): ?Schedule
+    {
+        return $this->schedule;
+    }
+
+    public function isActiveAt(int $timestamp): bool
+    {
+        return $this->schedule === null || $this->schedule->isActiveAt($timestamp);
     }
 
     /**

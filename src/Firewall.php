@@ -25,6 +25,11 @@ class Firewall
 
     private ?Rule $lastMatchedRule = null;
 
+    /**
+     * @var (\Closure(): int)|null
+     */
+    private ?\Closure $clock = null;
+
     public function __construct()
     {
         $this->attributeTypes = [
@@ -127,8 +132,21 @@ class Firewall
     }
 
     /**
+     * Source of the current Unix time for rule schedules; defaults to time().
+     *
+     * @param \Closure(): int $clock
+     */
+    public function setClock(\Closure $clock): self
+    {
+        $this->clock = $clock;
+
+        return $this;
+    }
+
+    /**
      * Evaluate registered rules in order against populated attributes.
      *
+     * Rules outside their schedule are skipped, so a later rule can still match.
      * Sets the matched rule via getLastMatchedRule() when a rule's conditions
      * match. Returns whether that rule's action allows the request to continue
      * (bypass/rateLimit) or should be blocked (deny/challenge/redirect).
@@ -137,8 +155,13 @@ class Firewall
     public function verify(): bool
     {
         $this->lastMatchedRule = null;
+        $now = $this->clock === null ? \time() : ($this->clock)();
 
         foreach ($this->rules as $rule) {
+            if (!$rule->isActiveAt($now)) {
+                continue;
+            }
+
             if (!$rule->matches($this->attributes, $this->attributeTypes)) {
                 continue;
             }
